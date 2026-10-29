@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AdminAccess;
 use App\Http\Middleware\EnsureUserLoggedIn;
+use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'user.auth' => EnsureUserLoggedIn::class,
             'admin.auth' => AdminAccess::class,
+        ]);
+        $middleware->web(append: [
+            SetLocale::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

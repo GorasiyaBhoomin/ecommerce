@@ -1,7 +1,7 @@
 {{--
   Shared admin sidebar.
   Params:
-    $active       - active nav key: orders | products | add-product | categories | variants | users | profile
+    $active       - active nav key: orders | products | add-product | import-products | languages | categories | variants | users | profile
     $showUserPill - (bool) render the user pill in the footer (defaults to false)
 --}}
 @php
@@ -21,11 +21,11 @@
         </div>
         <div>
           <div class="brand-title">Shopkart</div>
-          <span class="brand-badge">Admin Suite</span>
+          <span class="brand-badge">{{ __('Admin Suite') }}</span>
         </div>
       </div>
 
-      <div class="nav-label">Management</div>
+      <div class="nav-label">{{ __('Management') }}</div>
       <ul class="sidebar-menu">
         <li>
           <a href="/adminorders" class="menu-link {{ $active === 'orders' ? 'active' : '' }}">
@@ -34,7 +34,7 @@
               <path d="M9 3v18" />
               <path d="m14 9 3 3-3 3" />
             </svg>
-            Orders
+            {{ __('Orders') }}
           </a>
         </li>
         <li>
@@ -46,7 +46,7 @@
               <path d="m3.3 7 8.7 5 8.7-5" />
               <path d="M12 22V12" />
             </svg>
-            Products &amp; Stock
+            {{ __('Products & Stock') }}
           </a>
         </li>
         <li>
@@ -56,7 +56,7 @@
               <path d="M8 12h8" />
               <path d="M12 8v8" />
             </svg>
-            Add Product
+            {{ __('Add Product') }}
           </a>
         </li>
         <li>
@@ -66,7 +66,17 @@
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            Bulk Import
+            {{ __('Bulk Import') }}
+          </a>
+        </li>
+        <li>
+          <a href="/adminlanguages" class="menu-link {{ $active === 'languages' ? 'active' : '' }}">
+            <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M2 12h20" />
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            </svg>
+            {{ __('Languages') }}
           </a>
         </li>
         <li>
@@ -74,7 +84,7 @@
             <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
             </svg>
-            Categories
+            {{ __('Categories') }}
           </a>
         </li>
         <li>
@@ -90,7 +100,7 @@
               <line x1="9" y1="8" x2="15" y2="8" />
               <line x1="17" y1="16" x2="23" y2="16" />
             </svg>
-            Variants
+            {{ __('Variants') }}
           </a>
         </li>
         <li>
@@ -101,7 +111,7 @@
               <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
               <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
-            Users
+            {{ __('Users') }}
           </a>
         </li>
         <li>
@@ -111,22 +121,25 @@
               <path d="M9 3v18" />
               <path d="m14 9 3 3-3 3" />
             </svg>
-            Profile
+            {{ __('Profile') }}
           </a>
         </li>
       </ul>
 
       <div class="sidebar-footer">
-        
-
         @if ($showUserPill)
-          <div class="user-pill">
-            <div class="user-avatar">AD</div>
-            <div class="user-info">
-              <div class="user-name">Shop Manager</div>
-              <div class="user-role">admin@shopkart.com</div>
+          @php
+            $sidebarAdmin = $admin ?? (session('user_id') ? \App\Models\users::find(session('user_id')) : null);
+          @endphp
+          @if ($sidebarAdmin)
+            <div class="user-pill">
+              <div class="user-avatar">{{ strtoupper(substr($sidebarAdmin->name, 0, 1)) }}</div>
+              <div class="user-info">
+                <div class="user-name">{{ $sidebarAdmin->name }}</div>
+                <div class="user-role">{{ $sidebarAdmin->email }}</div>
+              </div>
             </div>
-          </div>
+          @endif
         @endif
       </div>
     </aside>

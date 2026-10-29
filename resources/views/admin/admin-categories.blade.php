@@ -31,12 +31,12 @@
           </button>
           <div>
             <div class="breadcrumb">
-              <a href="/adminproducts">Catalog</a>
+              <a href="/adminproducts">{{ __('Catalog') }}</a>
               <span>/</span>
-              <span>Categories</span>
+              <span>{{ __('Categories') }}</span>
             </div>
-            <h1 class="page-heading">Categories</h1>
-            <div style="font-size: 13px; color: var(--muted);">Organise products into storefront categories</div>
+            <h1 class="page-heading">{{ __('Categories') }}</h1>
+            <div style="font-size: 13px; color: var(--muted);">{{ __('Organise products into storefront categories') }}</div>
           </div>
         </div>
 
@@ -46,8 +46,8 @@
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.3-4.3" />
             </svg>
-            <input type="text" id="categorySearchInput" class="search-input" placeholder="Search category..."
-              aria-label="Search categories" oninput="filterCategories(this.value)">
+            <input type="text" id="categorySearchInput" class="search-input" placeholder="{{ __('Search category...') }}"
+              aria-label="{{ __('Search categories') }}" oninput="filterCategories(this.value)">
           </div>
 
           <a href="/adminaddcategory" class="btn-primary">
@@ -55,7 +55,7 @@
               <line x1="12" x2="12" y1="5" y2="19" />
               <line x1="5" x2="19" y1="12" y2="12" />
             </svg>
-            Add Category
+            {{ __('Add Category') }}
           </a>
 
           @include('admin.partials.notification-bar')
@@ -76,8 +76,8 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
               </svg>
-              <h2 class="category-title">All Categories</h2>
-              <span class="category-badge-pill" id="categoryCountPill">{{ $categories->count() }} Categories</span>
+              <h2 class="category-title">{{ __('All Categories') }}</h2>
+              <span class="category-badge-pill" id="categoryCountPill">{{ $categories->count() }} {{ __('Categories') }}</span>
             </div>
           </div>
 
@@ -85,12 +85,12 @@
             <table class="products-table">
               <thead>
                 <tr>
-                  <th>Category</th>
-                  <th>Slug</th>
-                  <th>Parent</th>
-                  <th>Order</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th>{{ __('Category') }}</th>
+                  <th>{{ __('Slug') }}</th>
+                  <th>{{ __('Parent') }}</th>
+                  <th>{{ __('Order') }}</th>
+                  <th>{{ __('Status') }}</th>
+                  <th>{{ __('Actions') }}</th>
                 </tr>
               </thead>
               <tbody id="categoryTableBody">
@@ -130,12 +130,12 @@
                     </td>
                     <td>
                       <div class="table-actions">
-                        <a href="/admineditcategory/{{ $category->id }}" class="edit-btn">Edit</a>
+                        <a href="/admineditcategory/{{ $category->id }}" class="edit-btn">{{ __('Edit') }}</a>
                         <form method="POST" action="/admincategories/{{ $category->id }}"
                           onsubmit="return confirmDelete('{{ $category->name }}')" style="margin: 0;">
                           @csrf
                           @method('DELETE')
-                          <button type="submit" class="delete-btn">Delete</button>
+                          <button type="submit" class="delete-btn">{{ __('Delete') }}</button>
                         </form>
                       </div>
                     </td>

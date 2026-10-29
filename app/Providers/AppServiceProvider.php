@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Language;
 use App\Models\Order;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -28,7 +29,14 @@ class AppServiceProvider extends ServiceProvider
                 ->take(5)
                 ->get();
 
-            $view->with('newOrders', $newOrders);
+            $activeLanguages = Language::active();
+            $currentLocale = app()->getLocale();
+
+            $view->with([
+                'newOrders' => $newOrders,
+                'activeLanguages' => $activeLanguages,
+                'currentLocale' => $currentLocale,
+            ]);
         });
     }
 }

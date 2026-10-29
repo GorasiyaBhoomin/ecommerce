@@ -35,7 +35,7 @@
               <span>/</span>
               <span>Variants</span>
             </div>
-            <h1 class="page-heading">Variant Options</h1>
+            <h1 class="page-heading">{{ __('Variant Options') }}</h1>
             <div style="font-size: 13px; color: var(--muted);">Reusable variant groups applied across products</div>
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminCategoryController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AdminLanguageController;
 use App\Http\Controllers\AdminProductController;
 use App\Http\Controllers\AdminProductImportController;
 use App\Http\Controllers\AdminUserController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\AdminVariantController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\UserController;
+use App\Models\Language;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'user.login');
@@ -94,5 +96,14 @@ Route::middleware('admin.auth')->group(function () {
 
     Route::post('/adminorderdetail/{id}/send-email', [AdminController::class, 'sendEmail'])->name('admin.orders.sendEmail');
     Route::post('/logout', [AdminController::class, 'logout']);
+
+    // Public language switcher
+    Route::match(['GET', 'POST'], '/switch-language/{code?}', [AdminLanguageController::class, 'switchLanguage'])->name('languages.switch');
+    Route::match(['GET', 'POST'], '/admin/switch-language/{code?}', [AdminLanguageController::class, 'switchLanguage'])->name('admin.languages.switch');
+    Route::get('/adminlanguages', [AdminLanguageController::class, 'index'])->name('admin.languages.index');
+    Route::post('/adminlanguages', [AdminLanguageController::class, 'store'])->name('admin.languages.store');
+    Route::patch('/adminlanguages/{language}/toggle', [AdminLanguageController::class, 'toggle'])->name('admin.languages.toggle');
+    Route::patch('/adminlanguages/{language}/default', [AdminLanguageController::class, 'makeDefault'])->name('admin.languages.default');
+    Route::delete('/adminlanguages/{language}', [AdminLanguageController::class, 'destroy'])->name('admin.languages.destroy');
 
 });

@@ -16,110 +16,7 @@
 <body>
 
   <div class="admin-container">
-    <!-- Left Dark Sidebar -->
-    <aside class="admin-sidebar" id="adminSidebar">
-      <div class="brand-area">
-        <div class="brand-logo-icon">
-          <!-- SVG Shop Icon -->
-          <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-            <path d="M3 6h18" />
-            <path d="M16 10a4 4 0 0 1-8 0" />
-          </svg>
-        </div>
-        <div>
-          <div class="brand-title">Shopkart</div>
-          <span class="brand-badge">Admin Suite</span>
-        </div>
-      </div>
-
-      <div class="nav-label">Management</div>
-      <ul class="sidebar-menu">
-        <li>
-          <a href="/adminorders" class="menu-link active">
-            <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect width="18" height="18" x="3" y="3" rx="2" />
-              <path d="M9 3v18" />
-              <path d="m14 9 3 3-3 3" />
-            </svg>
-            Orders
-          </a>
-        </li>
-        <li>
-          <a href="/adminproducts" class="menu-link">
-            <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="m7.5 4.27 9 5.15" />
-              <path
-                d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-              <path d="m3.3 7 8.7 5 8.7-5" />
-              <path d="M12 22V12" />
-            </svg>
-            Products &amp; Stock
-          </a>
-        </li>
-        <li>
-          <a href="/adminaddproduct" class="menu-link">
-            <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M8 12h8" />
-              <path d="M12 8v8" />
-            </svg>
-            Add Product
-          </a>
-        </li>
-        <li>
-          <a href="/admincategories" class="menu-link">
-            <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-            </svg>
-            Categories
-          </a>
-        </li>
-        <li>
-          <a href="/adminvariants" class="menu-link">
-            <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="4" y1="21" x2="4" y2="14" />
-              <line x1="4" y1="10" x2="4" y2="3" />
-              <line x1="12" y1="21" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12" y2="3" />
-              <line x1="20" y1="21" x2="20" y2="16" />
-              <line x1="20" y1="12" x2="20" y2="3" />
-              <line x1="1" y1="14" x2="7" y2="14" />
-              <line x1="9" y1="8" x2="15" y2="8" />
-              <line x1="17" y1="16" x2="23" y2="16" />
-            </svg>
-            Variants
-          </a>
-        </li>
-        <li>
-          <a href="/adminusers" class="menu-link">
-            <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            Users
-          </a>
-        </li>
-        <li>
-          <a href="/adminprofile" class="menu-link">
-            <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect width="18" height="18" x="3" y="3" rx="2" />
-              <path d="M9 3v18" />
-              <path d="m14 9 3 3-3 3" />
-            </svg>
-            Profile
-          </a>
-        </li>
-      </ul>
-
-    
-    </aside>
+    @include('admin.partials.admin-sidebar', ['active' => 'orders'])
 
     <!-- Main Content -->
     <main class="admin-main">
@@ -133,7 +30,7 @@
               <line x1="4" x2="20" y1="18" y2="18" />
             </svg>
           </button>
-          <h1 class="page-heading">Orders Management</h1>
+          <h1 class="page-heading">{{ __('Orders Management') }}</h1>
         </div>
 
         <div class="header-actions">
@@ -143,7 +40,7 @@
               <path d="m21 21-4.3-4.3" />
             </svg>
             <input type="text" id="orderSearchInput" class="search-input"
-              placeholder="Search Order ID, customer, item..." aria-label="Search orders">
+              placeholder="{{ __('Search Order ID, customer, item...') }}" aria-label="{{ __('Search orders') }}">
           </div>
           @include('admin.partials.notification-bar')
         </div>
@@ -157,11 +54,11 @@
 
     @php
         $cards = [
-            'received' => ['title' => 'Received', 'class' => 'card-received'],
-            'process' => ['title' => 'Process', 'class' => 'card-process'],
-            'shipping' => ['title' => 'Shipping', 'class' => 'card-shipping'],
-            'out_for_delivery' => ['title' => 'Out for delivery', 'class' => 'card-out'],
-            'delivered' => ['title' => 'Delivered', 'class' => 'card-delivered'],
+            'received' => ['title' => __('Received'), 'class' => 'card-received'],
+            'process' => ['title' => __('Process'), 'class' => 'card-process'],
+            'shipping' => ['title' => __('Shipping'), 'class' => 'card-shipping'],
+            'out_for_delivery' => ['title' => __('Out for delivery'), 'class' => 'card-out'],
+            'delivered' => ['title' => __('Delivered'), 'class' => 'card-delivered'],
         ];
     @endphp
 
@@ -183,7 +80,7 @@
             </div>
 
             <div class="status-card-val">
-                Total:
+                {{ __('Total') }}:
                 ₹{{ number_format($summary[$status]['total'], 2) }}
             </div>
 
@@ -201,30 +98,30 @@
 <button class="filter-pill active"
         data-status="all"
         onclick="filterByStatus('all')">
-    All ({{ $orders->count() }})
-</button>              <button class="filter-pill" data-status="received" onclick="filterByStatus('received')">Received</button>
-              <button class="filter-pill" data-status="process" onclick="filterByStatus('process')">Process</button>
-              <button class="filter-pill" data-status="shipping" onclick="filterByStatus('shipping')">Shipping</button>
+    {{ __('All Orders') }} ({{ $orders->count() }})
+</button>              <button class="filter-pill" data-status="received" onclick="filterByStatus('received')">{{ __('Received') }}</button>
+              <button class="filter-pill" data-status="process" onclick="filterByStatus('process')">{{ __('Process') }}</button>
+              <button class="filter-pill" data-status="shipping" onclick="filterByStatus('shipping')">{{ __('Shipping') }}</button>
               <button class="filter-pill" data-status="out_for_delivery"
-                onclick="filterByStatus('out_for_delivery')">Out for delivery</button>
+                onclick="filterByStatus('out_for_delivery')">{{ __('Out for delivery') }}</button>
               <button class="filter-pill" data-status="delivered"
-                onclick="filterByStatus('delivered')">Delivered</button>
+                onclick="filterByStatus('delivered')">{{ __('Delivered') }}</button>
             </div>
 <div class="results-count" id="tableResultCount">
-    Showing {{ $orders->count() }} orders
+    {{ __('Showing') }} {{ $orders->count() }} {{ __('Orders') }}
 </div>          </div>
 
           <div class="table-responsive">
             <table class="orders-table">
               <thead>
                 <tr>
-                  <th>Order ID</th>
-                  <th>Customer</th>
-                  <th>Items Ordered</th>
-                  <th>Total Bill</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Action</th>
+                  <th>{{ __('Order ID') }}</th>
+                  <th>{{ __('Customer') }}</th>
+                  <th>{{ __('Items') }}</th>
+                  <th>{{ __('Total') }}</th>
+                  <th>{{ __('Date') }}</th>
+                  <th>{{ __('Status') }}</th>
+                  <th>{{ __('Actions') }}</th>
                 </tr>
               </thead>
         
@@ -456,8 +353,6 @@
     }
 
     function applyFilters() {
- 
-function applyFilters() {
     const searchInput = document.getElementById('orderSearchInput');
     const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
 

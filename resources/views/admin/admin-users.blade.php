@@ -35,7 +35,7 @@
               <span>/</span>
               <span>Users</span>
             </div>
-            <h1 class="page-heading">Users</h1>
+            <h1 class="page-heading">{{ __('Users') }}</h1>
             <div style="font-size: 13px; color: var(--muted);">Registered customers and their order activity</div>
           </div>
         </div>
@@ -77,8 +77,8 @@
                 <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
                 <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
-              <h2 class="category-title">All Users</h2>
-              <span class="category-badge-pill" id="userCountPill">{{ $users->count() }} Users</span>
+              <h2 class="category-title">{{ __('All Users') }}</h2>
+              <span class="category-badge-pill" id="userCountPill">{{ $users->count() }} {{ __('Users') }}</span>
             </div>
           </div>
 
