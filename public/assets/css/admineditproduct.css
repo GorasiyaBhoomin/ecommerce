@@ -1,0 +1,144 @@
+:root {
+    --ink: #0F172A;
+    --muted: #566579;
+    --border: #E2E8F0;
+    --admin-bg: #F4F6F5;
+    --card-bg: #FFFFFF;
+    --primary-teal: #0F766E;
+    --primary-hover: #0D655E;
+    --light-teal: #E6F4F1;
+    --danger: #DC2626;
+    --danger-hover: #B91C1C;
+    --danger-soft: #FEF2F2;
+}
+
+/* Product Meta Strip (edit-only) */
+.edit-meta-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 32px;
+    padding: 14px 28px;
+    background: #FFFFFF;
+    border-bottom: 1px solid var(--border);
+}
+
+.edit-meta-bar .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.edit-meta-bar .meta-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+}
+
+.edit-meta-bar .meta-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.validation-summary {
+    margin: 20px 28px 0;
+    padding: 14px 18px;
+    border: 1px solid #FECACA;
+    border-radius: 8px;
+    background: var(--danger-soft);
+    color: var(--danger);
+    font-size: 13px;
+}
+
+.validation-summary ul {
+    margin: 8px 0 0;
+    padding-left: 20px;
+}
+
+.field-error {
+    display: block;
+    margin-top: 4px;
+    color: var(--danger);
+    font-size: 12px;
+}
+
+.existing-images {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.existing-images figure {
+    margin: 0;
+}
+
+.existing-images img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+.existing-images figcaption {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 11px;
+    text-align: center;
+}
+
+.spec-row {
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 10px;
+}
+
+.edit-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.edit-actions .btn-publish,
+.edit-actions .btn-cancel {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+}
+
+/* Danger button */
+.btn-delete {
+    background: #FFFFFF;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.btn-delete:hover {
+    background: var(--danger);
+    color: #FFFFFF;
+}
+
+@media (max-width: 768px) {
+    .edit-meta-bar {
+        padding: 12px 16px;
+        gap: 10px 20px;
+    }
+
+    .validation-summary {
+        margin: 16px;
+    }
+}

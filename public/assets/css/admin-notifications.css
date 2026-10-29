@@ -1,0 +1,205 @@
+/* Admin Notification Bar - new orders bell + dropdown. Shared by all admin pages. */
+.ntf-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ntf-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border, #E2E8F0);
+  background: #FFFFFF;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink, #0F172A);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+
+.ntf-btn:hover {
+  background: #F8FAFC;
+  border-color: var(--primary-teal, #0F766E);
+}
+
+.ntf-bell-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.ntf-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #DC2626;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #FFFFFF;
+}
+
+.ntf-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: min(340px, calc(100vw - 32px));
+  background: #FFFFFF;
+  border: 1px solid var(--border, #E2E8F0);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+  z-index: 200;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+}
+
+.ntf-panel.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.ntf-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border, #E2E8F0);
+}
+
+.ntf-panel-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ink, #0F172A);
+  letter-spacing: -0.2px;
+}
+
+.ntf-panel-count {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--light-teal, #E6F4F1);
+  color: var(--primary-teal, #0F766E);
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.ntf-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.ntf-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border, #E2E8F0);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s;
+}
+
+.ntf-item:last-child {
+  border-bottom: none;
+}
+
+.ntf-item:hover {
+  background: #F8FAFC;
+}
+
+.ntf-item.unread {
+  background: #F0FDFA;
+}
+
+.ntf-item.unread:hover {
+  background: #E6F4F1;
+}
+
+.ntf-item-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--light-teal, #E6F4F1);
+  color: var(--primary-teal, #0F766E);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ntf-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ntf-item-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink, #0F172A);
+}
+
+.ntf-item-text {
+  font-size: 12px;
+  color: var(--muted, #566579);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ntf-item-time {
+  font-size: 11px;
+  color: var(--muted, #566579);
+  opacity: 0.85;
+}
+
+.ntf-item-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #14B8A6;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.ntf-view-all {
+  display: block;
+  text-align: center;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary-teal, #0F766E);
+  text-decoration: none;
+  border-top: 1px solid var(--border, #E2E8F0);
+  transition: background 0.15s;
+}
+
+.ntf-view-all:hover {
+  background: var(--light-teal, #E6F4F1);
+}
+
+@media (max-width: 480px) {
+  .ntf-btn {
+    width: 36px;
+    height: 36px;
+  }
+}
