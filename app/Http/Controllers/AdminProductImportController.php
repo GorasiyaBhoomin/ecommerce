@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminProductImportController extends Controller
 {
@@ -38,7 +37,6 @@ class AdminProductImportController extends Controller
             'selectedCategoryId' => $selectedCategoryId,
         ]);
     }
-
 
     /**
      * Import products category-wise from a CSV file.
@@ -73,7 +71,7 @@ class AdminProductImportController extends Controller
                 if ($imgFile->isValid()) {
                     $filename = $imgFile->hashName();
                     $imgFile->move($imageDirectory, $filename);
-                    $defaultImagePaths[] = 'uploads/products/' . $filename;
+                    $defaultImagePaths[] = 'uploads/products/'.$filename;
                 }
             }
         }
@@ -81,7 +79,7 @@ class AdminProductImportController extends Controller
         $category = Category::findOrFail((int) $request->input('category_id'));
         $file = $request->file('csv_file');
 
-        if (!$file || !$file->isValid()) {
+        if (! $file || ! $file->isValid()) {
             return back()->withInput()->with('error', 'The uploaded CSV file is invalid or corrupted.');
         }
 
@@ -141,12 +139,12 @@ class AdminProductImportController extends Controller
 
         $reserved = array_filter(
             [$nameIndex, $actualPriceIndex, $skuIndex, $discountedPriceIndex, $stockIndex, $descriptionIndex, $isActiveIndex, $imageIndex, $specIndex],
-            fn($i): bool => $i !== null
+            fn ($i): bool => $i !== null
         );
 
         $variantColumns = []; // column index => VariantGroup
         foreach ($columnMap as $key => $index) {
-            if (in_array($index, $reserved, true) || !isset($groupMap[$key])) {
+            if (in_array($index, $reserved, true) || ! isset($groupMap[$key])) {
                 continue;
             }
             $variantColumns[$index] = $groupMap[$key];
@@ -158,7 +156,7 @@ class AdminProductImportController extends Controller
             return back()->withInput()->with(
                 'error',
                 'No variant columns found. Add at least one column named exactly like a variant group ('
-                . $allGroups->pluck('name')->implode(', ') . ').'
+                .$allGroups->pluck('name')->implode(', ').').'
             );
         }
 
@@ -177,7 +175,7 @@ class AdminProductImportController extends Controller
             $rowNumber++;
 
             // Skip blank or empty rows
-            if (empty(array_filter($row, fn($val): bool => trim((string) $val) !== ''))) {
+            if (empty(array_filter($row, fn ($val): bool => trim((string) $val) !== ''))) {
                 continue;
             }
 
@@ -229,7 +227,7 @@ class AdminProductImportController extends Controller
                     $imageList = $defaultImagePaths;
                 }
                 if (count($imageList) < self::MIN_IMAGES) {
-                    $errors[] = "Product '{$name}': at least " . self::MIN_IMAGES . ' images are required (found ' . count($imageList) . '). Add them in the "images" column or upload default images.';
+                    $errors[] = "Product '{$name}': at least ".self::MIN_IMAGES.' images are required (found '.count($imageList).'). Add them in the "images" column or upload default images.';
 
                     continue;
                 }
@@ -244,7 +242,7 @@ class AdminProductImportController extends Controller
                     // Remove currency symbols or commas e.g. "₹1,200.00" -> "1200.00"
                     $cleanActualPrice = preg_replace('/[^\d.]/', '', $rawActualPrice);
 
-                    if ($cleanActualPrice === '' || !is_numeric($cleanActualPrice)) {
+                    if ($cleanActualPrice === '' || ! is_numeric($cleanActualPrice)) {
                         $errors[] = "Row {$rowNum} ('{$name}'): Invalid actual price '{$rawActualPrice}'. Must be a positive number.";
 
                         continue;
@@ -330,9 +328,9 @@ class AdminProductImportController extends Controller
                         }
                     } else {
                         $suffixes = collect($options)
-                            ->map(fn(VariantValue $o): string => filled($o->sku_suffix) ? (string) $o->sku_suffix : Str::upper(Str::slug($o->value, '')))
+                            ->map(fn (VariantValue $o): string => filled($o->sku_suffix) ? (string) $o->sku_suffix : Str::upper(Str::slug($o->value, '')))
                             ->implode('-');
-                        $sku = $this->uniqueVariantSku(mb_substr($baseSku, 0, 100) . '-' . $suffixes, $batchSkus);
+                        $sku = $this->uniqueVariantSku(mb_substr($baseSku, 0, 100).'-'.$suffixes, $batchSkus);
                     }
 
                     $seenCombos[$comboKey] = true;
@@ -411,19 +409,19 @@ class AdminProductImportController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            return back()->withInput()->with('error', 'Import failed due to an unexpected error: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Import failed due to an unexpected error: '.$e->getMessage());
         }
 
-        if ($importedCount === 0 && !empty($errors)) {
+        if ($importedCount === 0 && ! empty($errors)) {
             return back()->withInput()->with('error', 'No products could be imported. Please review the errors below:')->with('import_errors', $errors);
         }
 
         $successMessage = "Successfully imported {$importedCount} product(s) with {$variantCount} variant(s) into category \"{$category->name}\".";
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             return redirect()->route('admin.products.index')
                 ->with('success', $successMessage)
-                ->with('warning', count($errors) . ' row(s) had issues and were skipped.')
+                ->with('warning', count($errors).' row(s) had issues and were skipped.')
                 ->with('import_errors', $errors);
         }
 
@@ -463,7 +461,7 @@ class AdminProductImportController extends Controller
             return true;
         }
 
-        return !in_array(strtolower($value), ['0', 'false', 'inactive', 'no', 'off'], true);
+        return ! in_array(strtolower($value), ['0', 'false', 'inactive', 'no', 'off'], true);
     }
 
     /**
@@ -493,7 +491,7 @@ class AdminProductImportController extends Controller
         $suffix = 2;
 
         while (Product::where('slug', $slug)->exists()) {
-            $slug = $baseSlug . '-' . $suffix;
+            $slug = $baseSlug.'-'.$suffix;
             $suffix++;
         }
 
@@ -512,7 +510,7 @@ class AdminProductImportController extends Controller
         $suffix = 1;
 
         while (isset($batchSkus[$candidate]) || ProductVariant::where('sku', $candidate)->exists()) {
-            $candidate = $base . '-' . $suffix;
+            $candidate = $base.'-'.$suffix;
             $suffix++;
         }
 

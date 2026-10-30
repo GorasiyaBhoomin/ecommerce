@@ -178,4 +178,103 @@ class UserController extends Controller
 
         return redirect('/login')->with('success', 'Logged out successfully.');
     }
+
+    // API REGISTER
+    public function apiRegister(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|regex:/^[a-zA-Z]+$/u|min:3|max:12',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|min:8|confirmed',
+            'phone' => 'required',
+            'address' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:100',
+            'state' => 'nullable|string|max:100',
+            'postal_code' => 'nullable|string|max:10',
+        ]);
+
+        $user = new users;
+
+        $user->name = $data['name'];
+        $user->email = $data['email'];
+        $user->password = Hash::make($data['password']);
+        $user->phone = $data['phone'];
+        $user->address = $data['address'] ?? null;
+        $user->city = $data['city'] ?? null;
+        $user->state = $data['state'] ?? null;
+        $user->postal_code = $data['postal_code'] ?? null;
+        $user->role = 'user';
+        $user->orders_count = 0;
+        $user->total_spent = 0.00;
+
+        $user->save();
+
+        $token = $user->createToken('shopkart-api')->plainTextToken;
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Registration successful',
+            'user' => $user,
+            'token' => $token,
+        ], 201);
+    }
+
+    // API LOGIN
+    public function apiLogin(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+
+        $user = users::where(
+            'email', $request->email
+        )->first();
+
+        if (! $user || ! Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Invalid email or password',
+            ], 401);
+        }
+
+        if (isset($user->status) && $user->status !== 'active') {
+            return response()->json([
+                'status' => false,
+                'message' => 'Your account is not active',
+            ], 403);
+        }
+
+        $user->last_login_at = now();
+        $user->save();
+
+        $token = $user->createToken('shopkart-api')->plainTextToken;
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Login successful',
+            'user' => $user,
+            'token' => $token,
+        ], 200);
+    }
+
+    // API LOGOUT
+    public function apiLogout(Request $request)
+    {
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Logout successful',
+        ]);
+    }
+
+    // API PROFILE
+    public function apiProfile(Request $request)
+    {
+        return response()->json([
+            'status' => true,
+            'data' => $request->user(),
+        ]);
+    }
 }
