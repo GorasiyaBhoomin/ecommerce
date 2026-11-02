@@ -44,7 +44,7 @@ class AuthController extends Controller
             'last_login_at' => now(),
         ]);
 
-        $token = $user->createToken('shopkart-api')->plainTextToken;
+        $token = $user->createToken('api-token')->plainTextToken;
         $user->remember_token = $token;
         $user->save();
 
@@ -99,7 +99,7 @@ class AuthController extends Controller
 
         $user->last_login_at = now();
 
-        $token = $user->createToken('shopkart-api')->plainTextToken;
+        $token = $user->createToken('api-token')->plainTextToken;
         $user->remember_token = $token;
         $user->save();
 

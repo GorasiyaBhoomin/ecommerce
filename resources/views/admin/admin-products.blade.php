@@ -38,14 +38,24 @@
         </div>
 
         <div class="header-actions">
-          <div class="search-box-wrap">
+          <form method="GET" action="{{ route('admin.products.index') }}" class="search-box-wrap" id="productSearchForm" style="display: flex; align-items: center; position: relative;">
+            @if (request('category'))
+              <input type="hidden" name="category" value="{{ request('category') }}">
+            @endif
+            @if (request('stock'))
+              <input type="hidden" name="stock" value="{{ request('stock') }}">
+            @endif
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.3-4.3" />
             </svg>
-            <input type="text" id="productSearchInput" class="search-input" placeholder="Search product or variant..."
-              aria-label="Search products">
-          </div>
+            <input type="text" id="productSearchInput" name="search" class="search-input" placeholder="Search product, SKU, variant..."
+              aria-label="Search products" value="{{ request('search') ?? request('q') }}" autocomplete="off">
+            @if (request('search') || request('q'))
+              <a href="{{ route('admin.products.index', array_filter(['category' => request('category'), 'stock' => request('stock')])) }}"
+                 style="position: absolute; right: 12px; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: bold;" title="Clear search">✕</a>
+            @endif
+          </form>
 
           <a href="/admincategories" class="btn-secondary">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -116,14 +126,28 @@
         <!-- Category Filter Pills -->
         <div class="toolbar-bar">
           <div class="filter-pills-wrap">
-            <a href="{{ route('admin.products.index') }}"
+            <a href="{{ route('admin.products.index', array_filter(['search' => request('search'), 'stock' => request('stock')])) }}"
               class="filter-pill {{ $selectedCategory ? '' : 'active' }}">All Categories
               ({{ $categories->sum('products_count') }})</a>
             @foreach ($categories as $category)
-              <a href="{{ route('admin.products.index', ['category' => $category->slug]) }}"
+              <a href="{{ route('admin.products.index', array_filter(['category' => $category->slug, 'search' => request('search'), 'stock' => request('stock')])) }}"
                 class="filter-pill {{ $selectedCategory?->id === $category->id ? 'active' : '' }}">{{ $category->name }}
                 ({{ $category->products_count }})</a>
             @endforeach
+          </div>
+        </div>
+
+        <!-- Stock Status Filter Pills -->
+        <div class="toolbar-bar" style="margin-top: 10px;">
+          <div class="filter-pills-wrap">
+            <a href="{{ route('admin.products.index', array_filter(['category' => request('category'), 'search' => request('search')])) }}"
+              class="filter-pill {{ !request('stock') ? 'active' : '' }}">All Stock</a>
+            <a href="{{ route('admin.products.index', array_filter(['category' => request('category'), 'search' => request('search'), 'stock' => 'in_stock'])) }}"
+              class="filter-pill {{ request('stock') === 'in_stock' ? 'active' : '' }}">In Stock</a>
+            <a href="{{ route('admin.products.index', array_filter(['category' => request('category'), 'search' => request('search'), 'stock' => 'low_stock'])) }}"
+              class="filter-pill {{ request('stock') === 'low_stock' ? 'active' : '' }}">Low Stock (&le; 10)</a>
+            <a href="{{ route('admin.products.index', array_filter(['category' => request('category'), 'search' => request('search'), 'stock' => 'out_of_stock'])) }}"
+              class="filter-pill {{ request('stock') === 'out_of_stock' ? 'active' : '' }}">Out of Stock</a>
           </div>
         </div>
 
@@ -131,7 +155,7 @@
           <div class="category-card-header">
             <div class="category-title-wrap">
               <h2 class="category-title">{{ $selectedCategory?->name ?? 'All Products' }}</h2>
-              <span class="category-badge-pill">{{ $products->count() }} Products &bull;
+              <span class="category-badge-pill" id="productCountPill">{{ $products->total() }} Products &bull;
                 {{ $products->sum(fn ($product) => $product->variants->count()) }} Variants</span>
             </div>
           </div>
@@ -147,14 +171,17 @@
                   <th>Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="productTableBody">
                 @forelse ($products as $product)
-                <tr>
+                @php
+                  $firstImg = $product->images->first();
+                  $stockState = $product->total_stock > 10 ? 'in_stock' : ($product->total_stock > 0 ? 'low_stock' : 'out_of_stock');
+                  $variantSkus = $product->variants->pluck('sku')->implode(' ');
+                  $searchText = strtolower(trim($product->name.' '.$product->sku.' '.($product->category->name ?? '').' '.$variantSkus));
+                @endphp
+                <tr data-search="{{ $searchText }}" data-stock="{{ $stockState }}">
                   <td>
                     <div class="product-meta-cell">
-                      @php
-                        $firstImg = $product->images->first();
-                      @endphp
                       @if ($firstImg)
                         <div class="product-icon-wrap" style="overflow: hidden; padding: 0; background: #f1f5f9;">
                           <img src="{{ \Illuminate\Support\Str::startsWith($firstImg->path, ['http://', 'https://']) ? $firstImg->path : asset($firstImg->path) }}"
@@ -228,12 +255,21 @@
                 </tr>
                 @empty
                 <tr>
-                  <td colspan="6" class="text-muted">No products have been added yet.</td>
+                  <td colspan="6" class="text-muted" style="text-align: center; padding: 30px;">No products found.</td>
                 </tr>
                 @endforelse
+                <tr id="noProductMatchRow" style="display: none;">
+                  <td colspan="6" class="text-muted" style="text-align: center; padding: 30px;">No products match your search.</td>
+                </tr>
               </tbody>
             </table>
           </div>
+
+          @if ($products->hasPages())
+            <div style="padding: 16px 20px; border-top: 1px solid #E2E8F0;">
+              {{ $products->links() }}
+            </div>
+          @endif
         </section>
 
        
@@ -244,6 +280,31 @@
   <script>
     function confirmDelete(name) {
       return confirm('Are you sure you want to delete "' + name + '"? This will permanently remove the product and its variants.');
+    }
+
+    // Live search for products
+    const productSearchInput = document.getElementById('productSearchInput');
+    if (productSearchInput) {
+      productSearchInput.addEventListener('input', function () {
+        const term = this.value.trim().toLowerCase();
+        const rows = document.querySelectorAll('#productTableBody tr[data-search]');
+        let visible = 0;
+        rows.forEach(row => {
+          const match = !term || (row.dataset.search || '').includes(term);
+          row.style.display = match ? '' : 'none';
+          if (match) visible++;
+        });
+
+        const emptyRow = document.getElementById('noProductMatchRow');
+        if (emptyRow) {
+          emptyRow.style.display = (visible === 0 && rows.length > 0) ? '' : 'none';
+        }
+
+        const countPill = document.getElementById('productCountPill');
+        if (countPill && term) {
+          countPill.textContent = `${visible} Products shown`;
+        }
+      });
     }
 
     // Mobile sidebar drawer (layout only)

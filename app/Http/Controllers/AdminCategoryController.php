@@ -7,10 +7,26 @@ use Illuminate\Http\Request;
 
 class AdminCategoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $search = $request->string('search')->trim()->toString();
+        if ($search === '') {
+            $search = $request->string('q')->trim()->toString();
+        }
+
+        $query = Category::with('parent')->orderBy('display_order')->orderBy('name');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('slug', 'like', '%'.$search.'%')
+                    ->orWhere('description', 'like', '%'.$search.'%');
+            });
+        }
+
         return view('admin.admin-categories', [
-            'categories' => Category::with('parent')->orderBy('display_order')->orderBy('name')->get(),
+            'categories' => $query->get(),
+            'search' => $search,
         ]);
     }
 

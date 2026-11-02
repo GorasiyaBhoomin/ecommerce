@@ -41,13 +41,16 @@
         </div>
 
         <div class="header-actions">
-          <div class="search-box-wrap">
+          <div class="search-box-wrap" style="position: relative; display: flex; align-items: center;">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.3-4.3" />
             </svg>
-            <input type="text" id="userSearchInput" class="search-input" placeholder="Search name, email, city..."
-              aria-label="Search users" oninput="filterUsers()">
+            <input type="text" id="userSearchInput" class="search-input" placeholder="Search name, email, phone, city..."
+              aria-label="Search users" value="{{ request('search') ?? request('q') }}" oninput="filterUsers()" autocomplete="off">
+            <button type="button" id="clearUserSearchBtn"
+              style="display: {{ (request('search') || request('q')) ? 'block' : 'none' }}; position: absolute; right: 12px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px;"
+              onclick="clearUserSearch()" title="Clear search">✕</button>
           </div>
 
           @include('admin.partials.notification-bar')
@@ -108,10 +111,10 @@
                       ->filter()
                       ->implode(', ');
                     $isActive = $user->last_login_at !== null;
-                    $status = $isActive ? '  `' : 'inactive';
+                    $status = $isActive ? 'active' : 'inactive';
                   @endphp
                   <tr data-status="{{ $status }}"
-                    data-search="{{ strtolower(trim($user->name.' '.$user->email.' '.($user->phone ?? '').' '.($user->city ?? ''))) }}">
+                    data-search="{{ strtolower(trim($user->name.' '.$user->email.' '.($user->phone ?? '').' '.($user->city ?? '').' '.($user->state ?? '').' '.($user->address ?? ''))) }}">
                     <td>
                       <div class="product-meta-cell">
                         <div class="customer-avatar">{{ $initials ?: 'U' }}</div>
@@ -141,6 +144,9 @@
                     <td colspan="8" style="text-align: center; padding: 24px; color: var(--muted);">No users found.</td>
                   </tr>
                 @endforelse
+                <tr id="noUserMatchRow" style="display: none;">
+                  <td colspan="8" style="text-align: center; padding: 24px; color: var(--muted);">No users match your search or filter.</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -239,9 +245,26 @@
       filterUsers();
     }
 
+    function clearUserSearch() {
+      const input = document.getElementById('userSearchInput');
+      const btn = document.getElementById('clearUserSearchBtn');
+      if (input) {
+        input.value = '';
+        if (btn) btn.style.display = 'none';
+        filterUsers();
+        input.focus();
+      }
+    }
+
     function filterUsers() {
-      const term = (document.getElementById('userSearchInput').value || '').trim().toLowerCase();
-      const rows = document.querySelectorAll('#userTableBody tr');
+      const searchInput = document.getElementById('userSearchInput');
+      const term = (searchInput ? searchInput.value : '').trim().toLowerCase();
+      const clearBtn = document.getElementById('clearUserSearchBtn');
+      if (clearBtn) {
+        clearBtn.style.display = term ? 'block' : 'none';
+      }
+
+      const rows = document.querySelectorAll('#userTableBody tr[data-search]');
       let visible = 0;
       rows.forEach(row => {
         const matchesSearch = !term || (row.dataset.search || '').includes(term);
@@ -250,8 +273,27 @@
         row.style.display = match ? '' : 'none';
         if (match) visible++;
       });
-      document.getElementById('userCountPill').textContent = `${visible} Users`;
+
+      const noMatchRow = document.getElementById('noUserMatchRow');
+      if (noMatchRow) {
+        noMatchRow.style.display = (visible === 0 && rows.length > 0) ? '' : 'none';
+      }
+
+      const countPill = document.getElementById('userCountPill');
+      if (countPill) {
+        countPill.textContent = `${visible} Users`;
+      }
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramSearch = urlParams.get('search') || urlParams.get('q');
+      const input = document.getElementById('userSearchInput');
+      if (paramSearch && input) {
+        input.value = paramSearch;
+      }
+      filterUsers();
+    });
 
     function viewCustomer(id) {
       const customer = customerDetails[id];

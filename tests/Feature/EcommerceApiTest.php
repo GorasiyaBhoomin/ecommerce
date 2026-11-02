@@ -403,3 +403,86 @@ test('unauthenticated post request to api orders returns 401 json without crashi
             'message' => 'Unauthenticated. Please provide a valid Bearer token in the Authorization header.',
         ]);
 });
+
+test('admin panel web views support search and filter query parameters', function () {
+    $admin = User::create([
+        'name' => 'Admin Panel Tester',
+        'email' => 'admintester@example.com',
+        'password' => Hash::make('password123'),
+        'phone' => '9111111111',
+        'role' => 'admin',
+    ]);
+
+    $category = Category::create([
+        'name' => 'Gadgets',
+        'slug' => 'gadgets',
+        'is_active' => true,
+    ]);
+
+    $product = Product::create([
+        'category_id' => $category->id,
+        'name' => 'Wireless Mouse Pro',
+        'slug' => 'wireless-mouse-pro',
+        'sku' => 'WMP-01',
+        'is_active' => true,
+    ]);
+
+    $product->variants()->create([
+        'sku' => 'WMP-01-BLK',
+        'actual_price' => 1200,
+        'stock_qty' => 15,
+        'is_active' => true,
+    ]);
+
+    $order = Order::create([
+        'user_id' => $admin->id,
+        'customer_name' => 'John Customer',
+        'phone' => '9888888888',
+        'address' => '45 Tech Park',
+        'city' => 'Surat',
+        'state' => 'Gujarat',
+        'postal_code' => '395007',
+        'subtotal' => 1200,
+        'delivery_fee' => 0,
+        'total_amount' => 1200,
+        'payment_method' => 'cod',
+        'payment_status' => 'pending',
+        'order_status' => 'pending',
+    ]);
+
+    $variantGroup = VariantGroup::create([
+        'name' => 'Color',
+        'label' => 'Color Choice',
+        'is_active' => true,
+    ]);
+
+    // 1. Admin products search & stock filter
+    $prodSearch = $this->withSession(['user_id' => $admin->id])
+        ->get('/adminproducts?search=Wireless&stock=in_stock');
+    $prodSearch->assertOk()
+        ->assertSee('Wireless Mouse Pro');
+
+    // 2. Admin orders search
+    $orderSearch = $this->withSession(['user_id' => $admin->id])
+        ->get('/adminorders?search=John');
+    $orderSearch->assertOk()
+        ->assertSee('John Customer');
+
+    // 3. Admin users search
+    $userSearch = $this->withSession(['user_id' => $admin->id])
+        ->get('/adminusers?search=Admin');
+    $userSearch->assertOk()
+        ->assertSee('Admin Panel Tester');
+
+    // 4. Admin categories search
+    $catSearch = $this->withSession(['user_id' => $admin->id])
+        ->get('/admincategories?search=Gadgets');
+    $catSearch->assertOk()
+        ->assertSee('Gadgets');
+
+    // 5. Admin variants search
+    $varSearch = $this->withSession(['user_id' => $admin->id])
+        ->get('/adminvariants?search=Color');
+    $varSearch->assertOk()
+        ->assertSee('Color');
+});

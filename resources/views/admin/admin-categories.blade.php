@@ -41,13 +41,17 @@
         </div>
 
         <div class="header-actions">
-          <div class="search-box-wrap">
+          <div class="search-box-wrap" style="position: relative; display: flex; align-items: center;">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.3-4.3" />
             </svg>
             <input type="text" id="categorySearchInput" class="search-input" placeholder="{{ __('Search category...') }}"
-              aria-label="{{ __('Search categories') }}" oninput="filterCategories(this.value)">
+              aria-label="{{ __('Search categories') }}" value="{{ request('search') ?? request('q') }}"
+              oninput="filterCategories(this.value)" autocomplete="off">
+            <button type="button" id="clearCatSearchBtn"
+              style="display: {{ (request('search') || request('q')) ? 'block' : 'none' }}; position: absolute; right: 12px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px;"
+              onclick="clearCategorySearch()" title="Clear search">✕</button>
           </div>
 
           <a href="/adminaddcategory" class="btn-primary">
@@ -148,6 +152,11 @@
                     </td>
                   </tr>
                 @endforelse
+                <tr id="noCategoryMatchRow" style="display: none;">
+                  <td colspan="6" style="text-align: center; padding: 36px 16px; color: var(--muted); font-size: 13px;">
+                    No categories match your search.
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -165,21 +174,53 @@
       });
     }
 
+    function clearCategorySearch() {
+      const input = document.getElementById('categorySearchInput');
+      const btn = document.getElementById('clearCatSearchBtn');
+      if (input) {
+        input.value = '';
+        if (btn) btn.style.display = 'none';
+        filterCategories('');
+        input.focus();
+      }
+    }
+
     function filterCategories(query) {
-      const term = query.trim().toLowerCase();
-      const rows = document.querySelectorAll('#categoryTableBody tr');
+      const term = (query || '').trim().toLowerCase();
+      const clearBtn = document.getElementById('clearCatSearchBtn');
+      if (clearBtn) {
+        clearBtn.style.display = term ? 'block' : 'none';
+      }
+
+      const rows = document.querySelectorAll('#categoryTableBody tr[data-search]');
       let visible = 0;
       rows.forEach(row => {
         const match = !term || (row.dataset.search || '').includes(term);
         row.style.display = match ? '' : 'none';
         if (match) visible++;
       });
-      document.getElementById('categoryCountPill').textContent = `${visible} Categories`;
+
+      const noMatchRow = document.getElementById('noCategoryMatchRow');
+      if (noMatchRow) {
+        noMatchRow.style.display = (visible === 0 && rows.length > 0) ? '' : 'none';
+      }
+
+      const pill = document.getElementById('categoryCountPill');
+      if (pill) {
+        pill.textContent = `${visible} Categories`;
+      }
     }
 
     function confirmDelete(name) {
       return window.confirm(`Delete the "${name}" category? Products will not be deleted.`);
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('categorySearchInput');
+      if (input && input.value) {
+        filterCategories(input.value);
+      }
+    });
   </script>
 </body>
 

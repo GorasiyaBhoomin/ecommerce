@@ -19,7 +19,7 @@ class AdminController extends Controller
         return redirect('/login')->with('success', 'Logged out successfully.');
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $orders = Order::with('items')
             ->latest()

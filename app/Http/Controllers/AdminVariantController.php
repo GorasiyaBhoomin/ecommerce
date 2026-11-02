@@ -9,10 +9,28 @@ use Illuminate\Support\Facades\DB;
 
 class AdminVariantController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $search = $request->string('search')->trim()->toString();
+        if ($search === '') {
+            $search = $request->string('q')->trim()->toString();
+        }
+
+        $query = VariantGroup::with(['values', 'categories'])->orderBy('name');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('label', 'like', '%'.$search.'%')
+                    ->orWhereHas('values', function ($vQ) use ($search) {
+                        $vQ->where('value', 'like', '%'.$search.'%');
+                    });
+            });
+        }
+
         return view('admin.admin-variants', [
-            'variantGroups' => VariantGroup::with(['values', 'categories'])->orderBy('name')->get(),
+            'variantGroups' => $query->get(),
+            'search' => $search,
         ]);
     }
 

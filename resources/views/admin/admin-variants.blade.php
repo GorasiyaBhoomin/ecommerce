@@ -41,13 +41,17 @@
         </div>
 
         <div class="header-actions">
-          <div class="search-box-wrap">
+          <div class="search-box-wrap" style="position: relative; display: flex; align-items: center;">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.3-4.3" />
             </svg>
             <input type="text" id="variantSearchInput" class="search-input" placeholder="Search variant group..."
-              aria-label="Search variants" oninput="filterVariants(this.value)">
+              aria-label="Search variants" value="{{ request('search') ?? request('q') }}"
+              oninput="filterVariants(this.value)" autocomplete="off">
+            <button type="button" id="clearVariantSearchBtn"
+              style="display: {{ (request('search') || request('q')) ? 'block' : 'none' }}; position: absolute; right: 12px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px;"
+              onclick="clearVariantSearch()" title="Clear search">✕</button>
           </div>
 
           <a href="/adminaddvariant" class="btn-primary">
@@ -161,6 +165,11 @@
                     </td>
                   </tr>
                 @endforelse
+                <tr id="noVariantMatchRow" style="display: none;">
+                  <td colspan="5" style="text-align: center; padding: 32px; color: var(--muted);">
+                    No variant groups match your search.
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -178,16 +187,41 @@
       });
     }
 
+    function clearVariantSearch() {
+      const input = document.getElementById('variantSearchInput');
+      const btn = document.getElementById('clearVariantSearchBtn');
+      if (input) {
+        input.value = '';
+        if (btn) btn.style.display = 'none';
+        filterVariants('');
+        input.focus();
+      }
+    }
+
     function filterVariants(query) {
-      const term = query.trim().toLowerCase();
-      const rows = document.querySelectorAll('#variantTableBody tr');
+      const term = (query || '').trim().toLowerCase();
+      const clearBtn = document.getElementById('clearVariantSearchBtn');
+      if (clearBtn) {
+        clearBtn.style.display = term ? 'block' : 'none';
+      }
+
+      const rows = document.querySelectorAll('#variantTableBody tr[data-search]');
       let visible = 0;
       rows.forEach(row => {
         const match = !term || (row.dataset.search || '').includes(term);
         row.style.display = match ? '' : 'none';
         if (match) visible++;
       });
-      document.getElementById('variantCountPill').textContent = `${visible} Groups`;
+
+      const noMatchRow = document.getElementById('noVariantMatchRow');
+      if (noMatchRow) {
+        noMatchRow.style.display = (visible === 0 && rows.length > 0) ? '' : 'none';
+      }
+
+      const pill = document.getElementById('variantCountPill');
+      if (pill) {
+        pill.textContent = `${visible} Groups`;
+      }
     }
 
     document.querySelectorAll('.delete-variant-form').forEach(form => {
@@ -197,6 +231,13 @@
           event.preventDefault();
         }
       });
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('variantSearchInput');
+      if (input && input.value) {
+        filterVariants(input.value);
+      }
     });
   </script>
 </body>

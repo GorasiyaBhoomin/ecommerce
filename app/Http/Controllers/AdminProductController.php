@@ -25,16 +25,56 @@ class AdminProductController extends Controller
             ? $categories->firstWhere('slug', $request->query('category'))
             : null;
 
-        $products = Product::with(['category', 'images', 'variants.values'])
-            ->when($selectedCategory, fn ($query) => $query->where('category_id', $selectedCategory->id))
-            ->latest()
-            ->paginate(10)
+        $search = $request->string('search')->trim()->toString();
+        if ($search === '') {
+            $search = $request->string('q')->trim()->toString();
+        }
+
+        $stockFilter = $request->string('stock')->trim()->toString();
+
+        $query = Product::with(['category', 'images', 'variants.values'])
+            ->when($selectedCategory, function ($q) use ($selectedCategory) {
+                $q->where('category_id', $selectedCategory->id);
+            });
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('sku', 'like', '%'.$search.'%')
+                    ->orWhere('description', 'like', '%'.$search.'%')
+                    ->orWhereHas('variants', function ($vQ) use ($search) {
+                        $vQ->where('sku', 'like', '%'.$search.'%');
+                    })
+                    ->orWhereHas('category', function ($cQ) use ($search) {
+                        $cQ->where('name', 'like', '%'.$search.'%');
+                    });
+            });
+        }
+
+        if ($stockFilter === 'in_stock') {
+            $query->whereHas('variants', function ($v) {
+                $v->where('stock_qty', '>', 10);
+            });
+        } elseif ($stockFilter === 'low_stock') {
+            $query->whereHas('variants', function ($v) {
+                $v->where('stock_qty', '>', 0)->where('stock_qty', '<=', 10);
+            });
+        } elseif ($stockFilter === 'out_of_stock') {
+            $query->whereDoesntHave('variants', function ($v) {
+                $v->where('stock_qty', '>', 0);
+            });
+        }
+
+        $products = $query->latest()
+            ->paginate(15)
             ->withQueryString();
 
         return view('admin.admin-products', [
             'products' => $products,
             'categories' => $categories,
             'selectedCategory' => $selectedCategory,
+            'search' => $search,
+            'stockFilter' => $stockFilter,
         ]);
     }
 
