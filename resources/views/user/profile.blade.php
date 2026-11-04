@@ -463,7 +463,22 @@
                   </div>
 
                   <div class="live-order-bottom">
-                    <div style="font-size: 14px;"><strong>Total Paid:</strong> &#8377;{{ number_format($order->total_amount, 2) }} &bull; {{ $order->payment_method === 'cod' ? 'Cash on Delivery' : 'Paid Online' }}</div>
+                    <div style="font-size: 14px;">
+                      <strong>Total Paid:</strong> &#8377;{{ number_format($order->total_amount, 2) }} &bull;
+                      @if(strtolower($order->payment_method ?? '') === 'razorpay')
+                        Paid via Razorpay
+                        @if($order->razorpay_payment_id || $order->payment_id)
+                          <small style="display:block; color:var(--primary-teal); font-weight:600; font-size:12px;">ID: {{ $order->razorpay_payment_id ?: $order->payment_id }}</small>
+                        @endif
+                      @elseif(strtolower($order->payment_method ?? '') === 'stripe')
+                        Paid via Stripe
+                        @if($order->stripe_payment_id || $order->payment_id)
+                          <small style="display:block; color:#4F46E5; font-weight:600; font-size:12px;">ID: {{ $order->stripe_payment_id ?: $order->payment_id }}</small>
+                        @endif
+                      @else
+                        Cash on Delivery
+                      @endif
+                    </div>
                     <a href="/myorders" class="btn-primary" style="padding: 8px 16px; font-size: 13px;">
                       Open 5-Step Live Tracker &rarr;
                     </a>

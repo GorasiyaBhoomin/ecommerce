@@ -2,15 +2,30 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendWelcomeEmailJob;
+use App\Mail\ResetPasswordMail;
 use App\Models\Order;
 use App\Models\users;
+use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
+use Razorpay\Api\Api;
 
 class UserController extends Controller
 {
     public function login()
     {
+        if (session()->has('user_id')) {
+            return session('user_role') === 'admin'
+                ? redirect('/adminorders')
+                : redirect('/index');
+        }
+
         return view('user.login');
     }
 
@@ -49,6 +64,8 @@ class UserController extends Controller
 
         $users->save();
 
+        SendWelcomeEmailJob::dispatch($users)->onQueue('emails');
+
         return redirect('/login')->with('success', 'Registration successful. You can now log in.');
     }
 
@@ -61,9 +78,16 @@ class UserController extends Controller
         if ($user && Hash::check($request->password, $user->password)) {
             session(['user_id' => $user->id, 'user_name' => $user->name, 'user_role' => $user->role]);
 
-            return $user->role == 'admin'
-                ? redirect('/adminorders')->with('success', 'Welcome Admin!')
-                : redirect('/index')->with('success', 'Login successful!');
+            if ($user->role === 'admin') {
+                $intended = session()->pull('url.intended', '/adminorders');
+                if (! is_string($intended) || ! str_contains($intended, 'admin')) {
+                    $intended = '/adminorders';
+                }
+
+                return redirect($intended)->with('success', 'Welcome Admin!');
+            }
+
+            return redirect()->intended('/index')->with('success', 'Login successful!');
         }
 
         return back()->with('error', 'Invalid email or password.');
@@ -228,7 +252,8 @@ class UserController extends Controller
         ]);
 
         $user = users::where(
-            'email', $request->email
+            'email',
+            $request->email
         )->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
@@ -276,5 +301,161 @@ class UserController extends Controller
             'status' => true,
             'data' => $request->user(),
         ]);
+    }
+
+    // ROZORPAY
+    public function index()
+    {
+        return view('user.rozorpay');
+    }
+
+    public function payment(Request $request)
+    {
+        // $user = users::find($request->session()->get('user_id'));
+        // $order = Order::find($request->session()->get('order_id'));
+        // $order->payment_status = 'paid';
+        // $order->save();
+        // return view('rozorpay');
+
+        $amount = $request->input('amount');
+        $api = new Api(env('RAZORPAY_KEY'), env('RAZORPAY_SECRET'));
+        $orderData = [
+            'receipt' => 'order_'.rand(1000, 9999),
+            'amount' => $amount * 100,
+            'currency' => 'INR',
+            'payment_capture' => 1,
+        ];
+
+        $order = $api->order->create($orderData);
+
+        // echo $order['id'];
+        return view('user.payment', ['orderId' => $order['id'], 'amount' => $amount * 100]);
+    }
+
+    /**
+     * Show the forgot password form.
+     */
+    public function showForgotPassword(): View
+    {
+        return view('user.forgot-password');
+    }
+
+    /**
+     * Send password reset link email.
+     */
+    public function sendResetLinkEmail(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $user = users::where('email', $request->email)->first();
+
+        if (! $user) {
+            return back()->withInput()->withErrors([
+                'email' => 'We could not find an account with that email address.',
+            ]);
+        }
+
+        $token = Str::random(64);
+
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $request->email],
+            [
+                'token' => $token,
+                'created_at' => now(),
+            ]
+        );
+
+        $resetUrl = route('password.reset', [
+            'token' => $token,
+            'email' => $request->email,
+        ]);
+
+        $mailSent = false;
+        try {
+            Mail::to($request->email)->send(new ResetPasswordMail($user, $resetUrl));
+            $mailSent = true;
+        } catch (\Throwable $e) {
+            $mailSent = false;
+        }
+
+        $redirect = back()->with('success', 'A password reset link has been emailed to '.$request->email.'. Please check your inbox.');
+
+        if (! $mailSent) {
+            $redirect->with('warning', 'Notice: Could not connect to mail server in this environment.')
+                ->with('reset_link', $resetUrl);
+        }
+
+        return $redirect;
+    }
+
+    /**
+     * Show the reset password form.
+     */
+    public function showResetPassword(Request $request, string $token): View|RedirectResponse
+    {
+        $email = $request->query('email');
+
+        $record = DB::table('password_reset_tokens')
+            ->where('token', $token)
+            ->when($email, fn ($q) => $q->where('email', $email))
+            ->first();
+
+        if (! $record) {
+            return redirect()->route('password.request')
+                ->with('error', 'This password reset link is invalid or has already been used.');
+        }
+
+        if (Carbon::parse($record->created_at)->addMinutes(60)->isPast()) {
+            return redirect()->route('password.request')
+                ->with('error', 'This password reset link has expired. Please request a new one.');
+        }
+
+        return view('user.reset-password', [
+            'token' => $token,
+            'email' => $record->email ?? $email,
+        ]);
+    }
+
+    /**
+     * Handle the password reset submission.
+     */
+    public function resetPassword(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'token' => 'required|string',
+            'email' => 'required|email|exists:users,email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $record = DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->where('token', $request->token)
+            ->first();
+
+        if (! $record) {
+            return back()->withInput()->withErrors([
+                'email' => 'Invalid password reset token or mismatched email.',
+            ]);
+        }
+
+        if (Carbon::parse($record->created_at)->addMinutes(60)->isPast()) {
+            return redirect()->route('password.request')->withErrors([
+                'email' => 'This password reset token has expired. Please request a new link.',
+            ]);
+        }
+
+        $user = users::where('email', $request->email)->first();
+        if ($user) {
+            $user->password = Hash::make($request->password);
+            $user->remember_token = null;
+            $user->save();
+        }
+
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+
+        return redirect()->route('login')
+            ->with('success', 'Your password has been successfully reset! You can now log in with your new password.');
     }
 }

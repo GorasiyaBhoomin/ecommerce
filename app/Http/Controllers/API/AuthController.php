@@ -3,10 +3,16 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendWelcomeEmailJob;
+use App\Mail\ResetPasswordMail;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -47,6 +53,8 @@ class AuthController extends Controller
         $token = $user->createToken('api-token')->plainTextToken;
         $user->remember_token = $token;
         $user->save();
+
+        SendWelcomeEmailJob::dispatch($user)->onQueue('emails');
 
         return response()->json([
             'status' => true,
@@ -144,6 +152,95 @@ class AuthController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'Logged out successfully.',
+        ], 200);
+    }
+
+    /**
+     * Send password reset link API.
+     */
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+        if (! $user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'No account found with this email address.',
+            ], 404);
+        }
+
+        $token = Str::random(64);
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $request->email],
+            [
+                'token' => $token,
+                'created_at' => now(),
+            ]
+        );
+
+        $resetUrl = route('password.reset', ['token' => $token, 'email' => $request->email]);
+
+        try {
+            Mail::to($request->email)->send(new ResetPasswordMail($user, $resetUrl));
+        } catch (\Throwable $e) {
+            // Mail transport error
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Password reset link sent to your email address.',
+            'data' => [
+                'reset_token' => $token,
+                'reset_url' => $resetUrl,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Reset password API.
+     */
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'token' => 'required|string',
+            'email' => 'required|email|exists:users,email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $record = DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->where('token', $request->token)
+            ->first();
+
+        if (! $record) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Invalid password reset token or email.',
+            ], 422);
+        }
+
+        if (Carbon::parse($record->created_at)->addMinutes(60)->isPast()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Password reset token has expired. Please request a new one.',
+            ], 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        if ($user) {
+            $user->password = Hash::make($request->password);
+            $user->remember_token = null;
+            $user->save();
+        }
+
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Password has been reset successfully. You can now login with your new password.',
         ], 200);
     }
 }

@@ -1,0 +1,8 @@
+name,sku,actual_price,discounted_price,stock_qty,Color,STORAGE,RAM,description,images,specifications,is_active
+Galaxy Phone Neo,GPN-128-RED,18999,16999,25,Red,128GB,6GB,"Flagship 5G smartphone with 120Hz Super AMOLED screen, triple camera setup, and 5000mAh battery.","https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=800, https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800, https://images.unsplash.com/photo-1580910051074-3eb694886505?w=800","Brand=Shopkart|Display=6.5 inch AMOLED|Battery=5000mAh|Processor=Octa Core 5G",1
+Galaxy Phone Neo,GPN-128-BLU,18999,16999,15,Blue,128GB,6GB,"","","",1
+Galaxy Phone Neo,GPN-256-GRN,21999,19999,10,Green,256GB,8GB,"","","",1
+Pulse Earbuds Pro,PEP-RED-64,2999,2499,40,Red,64GB,4GB,"Premium wireless earbuds with active noise cancellation, deep bass, and up to 36 hours playback.","https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800, https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?w=800, https://images.unsplash.com/photo-1572536147248-ac59a8abfa4b?w=800","Brand=Shopkart|Battery=36 Hours|Connectivity=Bluetooth 5.3|Noise Cancellation=Yes",1
+Pulse Earbuds Pro,PEP-BLU-64,2999,2499,30,Blue,64GB,4GB,"","","",1
+Nova Smart Tablet,NST-256-GRN,28999,25999,18,Green,256GB,8GB,"Slim and lightweight 11-inch high-resolution tablet with stereo quad speakers and stylus support.","https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=800, https://images.unsplash.com/photo-1561154464-82e9adf32764?w=800, https://images.unsplash.com/photo-1585790050230-5dd28404ccb9?w=800","Brand=Shopkart|Screen=11 inch 2K|Storage=256GB|RAM=8GB",1
+

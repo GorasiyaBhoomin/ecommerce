@@ -65,8 +65,8 @@ class AdminProductController extends Controller
             });
         }
 
-        $products = $query->latest()
-            ->paginate(15)
+        $products = $query->latest('id')
+            ->paginate((int) $request->input('per_page', 6))
             ->withQueryString();
 
         return view('admin.admin-products', [

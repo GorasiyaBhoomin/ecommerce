@@ -167,8 +167,35 @@
             <table class="kv">
               <tr><td class="k">Invoice date</td><td class="v">{{ $order->created_at->format('d M Y') }}</td></tr>
               <tr><td class="k">Order time</td><td class="v">{{ $order->created_at->format('h:i A') }}</td></tr>
-              <tr><td class="k">Payment method</td><td class="v">{{ strtoupper($order->payment_method) }}</td></tr>
-              @if($order->payment_id)
+              <tr>
+                <td class="k">Payment method</td>
+                <td class="v">
+                  @if(strtolower($order->payment_method ?? '') === 'razorpay')
+                    RAZORPAY (ONLINE)
+                  @elseif(strtolower($order->payment_method ?? '') === 'stripe')
+                    STRIPE (ONLINE)
+                  @elseif(strtolower($order->payment_method ?? '') === 'cod')
+                    CASH ON DELIVERY (COD)
+                  @else
+                    {{ strtoupper($order->payment_method ?? 'N/A') }}
+                  @endif
+                </td>
+              </tr>
+              @if(strtolower($order->payment_method ?? '') === 'razorpay')
+                @if($order->razorpay_payment_id || $order->payment_id)
+                  <tr><td class="k">Razorpay Payment ID</td><td class="v" style="font-size: 8.5px;">{{ $order->razorpay_payment_id ?: $order->payment_id }}</td></tr>
+                @endif
+                @if($order->razorpay_order_id)
+                  <tr><td class="k">Razorpay Order ID</td><td class="v" style="font-size: 8.5px;">{{ $order->razorpay_order_id }}</td></tr>
+                @endif
+              @elseif(strtolower($order->payment_method ?? '') === 'stripe')
+                @if($order->stripe_payment_id || $order->payment_id)
+                  <tr><td class="k">Stripe Payment ID</td><td class="v" style="font-size: 8.5px;">{{ $order->stripe_payment_id ?: $order->payment_id }}</td></tr>
+                @endif
+                @if($order->stripe_session_id)
+                  <tr><td class="k">Stripe Session ID</td><td class="v" style="font-size: 8.5px;">{{ $order->stripe_session_id }}</td></tr>
+                @endif
+              @elseif($order->payment_id)
                 <tr><td class="k">Payment ID</td><td class="v" style="font-size: 8.5px;">{{ $order->payment_id }}</td></tr>
               @endif
               <tr><td class="k">Order status</td><td class="v">{{ ucwords(str_replace('_', ' ', $order->order_status)) }}</td></tr>
@@ -222,6 +249,11 @@
             <strong>Thank you for your order!</strong><br>
             @if($payStatus === 'paid')
               Payment received in full. No further payment is due.
+              @if(strtolower($order->payment_method ?? '') === 'razorpay' && ($order->razorpay_payment_id || $order->payment_id))
+                <br>Razorpay Transaction Ref: {{ $order->razorpay_payment_id ?: $order->payment_id }}
+              @elseif(strtolower($order->payment_method ?? '') === 'stripe' && ($order->stripe_payment_id || $order->payment_id))
+                <br>Stripe Transaction Ref: {{ $order->stripe_payment_id ?: $order->payment_id }}
+              @endif
             @elseif($payStatus === 'refunded')
               This order has been refunded to the original payment method.
             @elseif(strtolower($order->payment_method) === 'cod')

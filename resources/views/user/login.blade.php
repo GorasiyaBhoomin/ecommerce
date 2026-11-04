@@ -108,11 +108,9 @@
     @enderror
           </div>
         </div>
- @if(session('error'))
-        <p style="color:red">{{ session('error') }}</p>
-    @endif
+
         <div class="form-options-row">
-          <a href="#" class="forgot-link" onclick="alert('Password reset link sent to registered email.'); return false;">Forgot password?</a>
+          <a href="{{ route('password.request') }}" class="forgot-link">Forgot password?</a>
         </div>
 
         <button type="submit" class="btn-submit">

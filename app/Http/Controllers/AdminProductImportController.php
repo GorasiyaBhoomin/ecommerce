@@ -11,8 +11,10 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminProductImportController extends Controller
 {
@@ -35,6 +37,133 @@ class AdminProductImportController extends Controller
         return view('admin.admin-import-products', [
             'categories' => $categories,
             'selectedCategoryId' => $selectedCategoryId,
+        ]);
+    }
+
+    /**
+     * Download a dummy / sample CSV template pre-filled with valid products,
+     * variant columns and specifications matching the store setup.
+     */
+    public function sample(Request $request): StreamedResponse
+    {
+        $categoryId = (int) $request->query('category_id', 0);
+        $category = Category::find($categoryId);
+        $categorySlug = $category ? Str::slug($category->name) : 'products';
+        $filename = "dummy_{$categorySlug}_bulk_import.csv";
+
+        $headers = [
+            'name',
+            'sku',
+            'actual_price',
+            'discounted_price',
+            'stock_qty',
+            'Color',
+            'STORAGE',
+            'RAM',
+            'description',
+            'images',
+            'specifications',
+            'is_active',
+        ];
+
+        $dummyRows = [
+            [
+                'Galaxy Phone Neo',
+                'GPN-128-RED',
+                '18999',
+                '16999',
+                '25',
+                'Red',
+                '128GB',
+                '6GB',
+                'Flagship 5G smartphone with 120Hz Super AMOLED screen, triple camera setup, and 5000mAh battery.',
+                'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=800, https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800, https://images.unsplash.com/photo-1580910051074-3eb694886505?w=800',
+                'Brand=Shopkart|Display=6.5 inch AMOLED|Battery=5000mAh|Processor=Octa Core 5G',
+                '1',
+            ],
+            [
+                'Galaxy Phone Neo',
+                'GPN-128-BLU',
+                '18999',
+                '16999',
+                '15',
+                'Blue',
+                '128GB',
+                '6GB',
+                '',
+                '',
+                '',
+                '1',
+            ],
+            [
+                'Galaxy Phone Neo',
+                'GPN-256-GRN',
+                '21999',
+                '19999',
+                '10',
+                'Green',
+                '256GB',
+                '8GB',
+                '',
+                '',
+                '',
+                '1',
+            ],
+            [
+                'Pulse Earbuds Pro',
+                'PEP-RED-64',
+                '2999',
+                '2499',
+                '40',
+                'Red',
+                '64GB',
+                '4GB',
+                'Premium wireless earbuds with active noise cancellation, deep bass, and up to 36 hours playback.',
+                'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800, https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?w=800, https://images.unsplash.com/photo-1572536147248-ac59a8abfa4b?w=800',
+                'Brand=Shopkart|Battery=36 Hours|Connectivity=Bluetooth 5.3|Noise Cancellation=Yes',
+                '1',
+            ],
+            [
+                'Pulse Earbuds Pro',
+                'PEP-BLU-64',
+                '2999',
+                '2499',
+                '30',
+                'Blue',
+                '64GB',
+                '4GB',
+                '',
+                '',
+                '',
+                '1',
+            ],
+            [
+                'Nova Smart Tablet',
+                'NST-256-GRN',
+                '28999',
+                '25999',
+                '18',
+                'Green',
+                '256GB',
+                '8GB',
+                'Slim and lightweight 11-inch high-resolution tablet with stereo quad speakers and stylus support.',
+                'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=800, https://images.unsplash.com/photo-1561154464-82e9adf32764?w=800, https://images.unsplash.com/photo-1585790050230-5dd28404ccb9?w=800',
+                'Brand=Shopkart|Screen=11 inch 2K|Storage=256GB|RAM=8GB',
+                '1',
+            ],
+        ];
+
+        return response()->streamDownload(function () use ($headers, $dummyRows): void {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, $headers);
+            foreach ($dummyRows as $row) {
+                fputcsv($handle, $row);
+            }
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }
 
@@ -197,6 +326,9 @@ class AdminProductImportController extends Controller
         $importedCount = 0;
         $variantCount = 0;
         $batchSkus = [];
+        $downloadedImagesCache = [];
+        $targetDirectory = public_path('uploads/products');
+        File::ensureDirectoryExists($targetDirectory);
 
         DB::beginTransaction();
 
@@ -375,8 +507,15 @@ class AdminProductImportController extends Controller
                 ]);
 
                 foreach ($imageList as $position => $imgPath) {
+                    if (isset($downloadedImagesCache[$imgPath])) {
+                        $storedPath = $downloadedImagesCache[$imgPath];
+                    } else {
+                        $storedPath = $this->storeProductImage($imgPath, $targetDirectory);
+                        $downloadedImagesCache[$imgPath] = $storedPath;
+                    }
+
                     $product->images()->create([
-                        'path' => $imgPath,
+                        'path' => $storedPath,
                         'position' => $position,
                     ]);
                 }
@@ -515,5 +654,83 @@ class AdminProductImportController extends Controller
         }
 
         return $candidate;
+    }
+
+    /**
+     * Download or copy a product image into public/uploads/products folder and return relative path.
+     */
+    private function storeProductImage(string $imageRef, string $targetDirectory): string
+    {
+        $imageRef = trim($imageRef);
+        if ($imageRef === '') {
+            return '';
+        }
+
+        File::ensureDirectoryExists($targetDirectory);
+
+        // Case 1: Remote HTTP/HTTPS URL -> Download and save into public/uploads/products
+        if (Str::startsWith($imageRef, ['http://', 'https://'])) {
+            try {
+                $response = Http::timeout(15)
+                    ->withHeaders(['User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'])
+                    ->get($imageRef);
+
+                if ($response->successful() && strlen($response->body()) > 0) {
+                    $contentType = $response->header('Content-Type');
+                    $extension = match (true) {
+                        str_contains((string) $contentType, 'png') => 'png',
+                        str_contains((string) $contentType, 'webp') => 'webp',
+                        str_contains((string) $contentType, 'gif') => 'gif',
+                        str_contains((string) $contentType, 'svg') => 'svg',
+                        default => null,
+                    };
+
+                    if ($extension === null) {
+                        $urlPath = parse_url($imageRef, PHP_URL_PATH);
+                        $extractedExt = strtolower((string) pathinfo((string) $urlPath, PATHINFO_EXTENSION));
+                        $extension = in_array($extractedExt, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'], true)
+                            ? ($extractedExt === 'jpeg' ? 'jpg' : $extractedExt)
+                            : 'jpg';
+                    }
+
+                    $filename = Str::random(40).'.'.$extension;
+                    $fullPath = $targetDirectory.DIRECTORY_SEPARATOR.$filename;
+
+                    File::put($fullPath, $response->body());
+
+                    return 'uploads/products/'.$filename;
+                }
+            } catch (\Throwable $e) {
+                // In case of timeout or connection error, return original URL as fallback
+            }
+
+            return $imageRef;
+        }
+
+        // Case 2: Local file path on server
+        if (File::exists($imageRef)) {
+            $extension = strtolower(File::extension($imageRef)) ?: 'jpg';
+            $filename = Str::random(40).'.'.$extension;
+            File::copy($imageRef, $targetDirectory.DIRECTORY_SEPARATOR.$filename);
+
+            return 'uploads/products/'.$filename;
+        }
+
+        // Case 3: Already in uploads/products
+        if (Str::startsWith($imageRef, 'uploads/products/') && File::exists(public_path($imageRef))) {
+            return $imageRef;
+        }
+
+        // Check if file exists inside public/
+        if (File::exists(public_path($imageRef))) {
+            return $imageRef;
+        }
+
+        // Check if just a filename in public/uploads/products/
+        if (File::exists($targetDirectory.DIRECTORY_SEPARATOR.basename($imageRef))) {
+            return 'uploads/products/'.basename($imageRef);
+        }
+
+        return $imageRef;
     }
 }

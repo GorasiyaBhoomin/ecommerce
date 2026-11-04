@@ -1,4 +1,4 @@
-    <?php
+<?php
 
 use App\Http\Controllers\AdminCategoryController;
 use App\Http\Controllers\AdminController;
@@ -13,7 +13,18 @@ use App\Http\Controllers\UserController;
 use App\Models\Language;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'user.login');
+Route::get('/', function () {
+    if (session()->has('user_id')) {
+        return session('user_role') === 'admin'
+            ? redirect('/adminorders')
+            : redirect('/index');
+    }
+
+    return view('user.login');
+});
+
+Route::redirect('/adminlogin', '/login');
+Route::redirect('/admin/login', '/login');
 
 // public (guest)
 Route::get('/login', [UserController::class, 'login'])->name('login');
@@ -21,6 +32,12 @@ Route::post('/login', [UserController::class, 'userlogin']);
 
 Route::get('/register', [UserController::class, 'register']);
 Route::post('/register', [UserController::class, 'registerSubmit']);
+
+// Password Reset (Guest)
+Route::get('/forgot-password', [UserController::class, 'showForgotPassword'])->name('password.request');
+Route::post('/forgot-password', [UserController::class, 'sendResetLinkEmail'])->name('password.email');
+Route::get('/reset-password/{token}', [UserController::class, 'showResetPassword'])->name('password.reset');
+Route::post('/reset-password', [UserController::class, 'resetPassword'])->name('password.update');
 
 // Stripe webhook (server-to-server, no session or CSRF)
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
@@ -50,11 +67,19 @@ Route::middleware('user.auth')->group(function () {
     Route::post('/profile/address', [UserController::class, 'addressUpdate']);
     Route::post('/profile/security', [UserController::class, 'securityUpdate']);
 
+    Route::get('/rozorpay', [UserController::class, 'index']);
+
+    Route::post('/rozorpay/payment', [UserController::class, 'payment'])
+        ->name('rozorpay.payment');
+    // Razorpay payment verification
+    Route::post('/razorpay/verify', [ShopController::class, 'verifyRazorpayPayment'])
+        ->name('payment.razorpay.verify');
     Route::post('/logout', [UserController::class, 'logout']);
 });
 
 Route::middleware('admin.auth')->group(function () {
     // admin
+    Route::get('/admin', fn () => redirect()->route('admin.orders.index'))->name('admin.dashboard');
     Route::get('/adminorders', [AdminController::class, 'index'])->name('admin.orders.index');
     // Route::view('/adminproducts', 'admin.admin-products')->name('admin.products');
     Route::get('/adminproducts', [AdminProductController::class, 'index'])->name('admin.products.index');
@@ -89,8 +114,6 @@ Route::middleware('admin.auth')->group(function () {
     Route::get('/adminprofile', [AdminController::class, 'profile'])->name('admin.profile');
     Route::post('/adminprofile', [AdminController::class, 'profileUpdate'])->name('admin.profile.update');
     Route::post('/adminpassword', [AdminController::class, 'passwordUpdate'])->name('admin.password.update');
-
-    Route::get('/adminorderdetail/{id}', [AdminController::class, 'show'])->name('admin.orders.show');
 
     Route::patch('/adminorderdetail/{id}/status', [AdminController::class, 'updateStatus'])->name('admin.orders.status');
 

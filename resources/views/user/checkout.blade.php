@@ -19,21 +19,21 @@
   @include('user.partials.navbar')
   @if(session('success'))
     <div style="padding:12px; background:#d1fae5; color:#065f46;">
-        {{ session('success') }}
+      {{ session('success') }}
     </div>
-@endif
+  @endif
 
-@if(session('error'))
+  @if(session('error'))
     <div style="padding:12px; background:#fee2e2; color:#991b1b;">
-        {{ session('error') }}
+      {{ session('error') }}
     </div>
-@endif
+  @endif
 
-@if($errors->any())
+  @if($errors->any())
     <div style="padding:12px; background:#fee2e2; color:#991b1b;">
-        {{ $errors->first() }}
+      {{ $errors->first() }}
     </div>
-@endif
+  @endif
   <!-- Main Content -->
   <main class="main-content">
     <div class="page-title-row">
@@ -59,263 +59,207 @@
                 <circle cx="19" cy="21" r="1" />
                 <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
               </svg>
-Step 1 &bull; Items in Your Order ({{ $cartItems->count() }} Products)            </h2>
+              Step 1 &bull; Items in Your Order ({{ $cartItems->count() }} Products)
+            </h2>
           </div>
           <div class="card-body" id="cartItemsList">
 
-    @forelse($cartItems as $item)
+            @forelse($cartItems as $item)
 
-                  @php
-              $price = $item->variant?->discounted_price
+              @php
+                $price = $item->variant?->discounted_price
                   ?? $item->variant?->actual_price
                   ?? 0;
 
-              $actualPrice = $item->variant?->actual_price ?? $price;
+                $actualPrice = $item->variant?->actual_price ?? $price;
 
-              $itemSubtotal = $price * $item->quantity;
-          @endphp
+                $itemSubtotal = $price * $item->quantity;
+              @endphp
 
-        <div class="cart-item-row" id="cartRow{{ $item->id }}">
+              <div class="cart-item-row" id="cartRow{{ $item->id }}">
 
-            <!-- Product Information -->
-            <div class="item-meta">
+                <!-- Product Information -->
+                <div class="item-meta">
 
-    <div class="item-name">
-        {{ $item->product?->name ?? 'Product unavailable' }}
-    </div>
+                  <div class="item-name">
+                    {{ $item->product?->name ?? 'Product unavailable' }}
+                  </div>
 
-    <div class="item-variant-tag">
-        @if($item->variant)
-            {{ $item->variant->values->pluck('value')->join(' • ') }}
-        @endif
-    </div>
+                  <div class="item-variant-tag">
+                    @if($item->variant)
+                      {{ $item->variant->values->pluck('value')->join(' • ') }}
+                    @endif
+                  </div>
 
-    <div class="item-price-unit">
+                  <div class="item-price-unit">
 
-        <strong>
-            ₹{{ number_format($price, 2) }}
-        </strong>
+                    <strong>
+                      ₹{{ number_format($price, 2) }}
+                    </strong>
 
-        @if($actualPrice > $price)
-            <del style="color:#999; margin-left:8px;">
-                ₹{{ number_format($actualPrice, 2) }}
-            </del>
-        @endif
+                    @if($actualPrice > $price)
+                      <del style="color:#999; margin-left:8px;">
+                        ₹{{ number_format($actualPrice, 2) }}
+                      </del>
+                    @endif
 
-        <span>each</span>
+                    <span>each</span>
 
-    </div>
+                  </div>
 
-</div>
+                </div>
 
-            <!-- Quantity -->
-            <form action="{{ route('cart.update', $item->id) }}"
-                  method="POST"
-                  class="qty-box">
+                <!-- Quantity -->
+                <form action="{{ route('cart.update', $item->id) }}" method="POST" class="qty-box">
 
-                @csrf
+                  @csrf
 
-                <button class="qty-btn"
-                        type="button"
-                        onclick="changeCartQty(this, -1)">
+                  <button class="qty-btn" type="button" onclick="changeCartQty(this, -1)">
                     &minus;
-                </button>
+                  </button>
 
-                <input type="number"
-                       name="quantity"
-                       class="qty-input"
-                       id="itemQty{{ $item->id }}"
-                       value="{{ $item->quantity }}"
-                       min="1"
-                       max="{{ $item->variant?->stock_qty ?? 1 }}"
-                       readonly>
+                  <input type="number" name="quantity" class="qty-input" id="itemQty{{ $item->id }}"
+                    value="{{ $item->quantity }}" min="1" max="{{ $item->variant?->stock_qty ?? 1 }}" readonly>
 
-                <button class="qty-btn"
-                        type="button"
-                        onclick="changeCartQty(this, 1)">
+                  <button class="qty-btn" type="button" onclick="changeCartQty(this, 1)">
                     &#43;
-                </button>
+                  </button>
 
-            </form>
+                </form>
 
-            <!-- Item Subtotal -->
-            <div class="item-subtotal" id="itemSubtotal{{ $item->id }}">
-                &#8377;{{ number_format($itemSubtotal, 0) }}
-            </div>
+                <!-- Item Subtotal -->
+                <div class="item-subtotal" id="itemSubtotal{{ $item->id }}">
+                  &#8377;{{ number_format($itemSubtotal, 0) }}
+                </div>
 
-            <!-- Remove Product -->
-            <form action="{{ route('cart.remove', $item->id) }}"
-                  method="POST">
+                <!-- Remove Product -->
+                <form action="{{ route('cart.remove', $item->id) }}" method="POST">
 
-                @csrf
+                  @csrf
 
-                <button class="remove-btn"
-                        type="submit"
-                        title="Remove item"
-                        aria-label="Remove product">
+                  <button class="remove-btn" type="submit" title="Remove item" aria-label="Remove product">
 
-                    <svg width="18" height="18"
-                         viewBox="0 0 24 24"
-                         fill="none"
-                         stroke="currentColor"
-                         stroke-width="2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 
-                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
 
                     </svg>
 
-                </button>
+                  </button>
 
-            </form>
+                </form>
 
-        </div>
+              </div>
 
-    @empty
+            @empty
 
-        <div style="text-align:center; padding:30px;">
+              <div style="text-align:center; padding:30px;">
 
-            <h3>Your cart is empty!</h3>
+                <h3>Your cart is empty!</h3>
 
-            <p>Add some products to your cart.</p>
+                <p>Add some products to your cart.</p>
 
-            <a href="{{ route('shop.index') }}">
-                Continue Shopping
-            </a>
+                <a href="{{ route('shop.index') }}">
+                  Continue Shopping
+                </a>
 
-        </div>
+              </div>
 
-    @endforelse
+            @endforelse
 
-</div>
+          </div>
         </section>
 
         <!-- 2. Delivery Address Form -->
-       
-<!-- Delivery Address -->
-<section class="checkout-card">
 
-    <div class="card-header">
-        <h2 class="card-title">
-            Step 2 • Delivery Address
-        </h2>
-    </div>
+        <!-- Delivery Address -->
+        <section class="checkout-card">
 
-    <div class="card-body">
+          <div class="card-header">
+            <h2 class="card-title">
+              Step 2 • Delivery Address
+            </h2>
+          </div>
 
-        <div class="form-grid-2">
+          <div class="card-body">
 
-            <div class="form-group">
+            <div class="form-grid-2">
+
+              <div class="form-group">
                 <label class="form-label">
-                    Full Name *
+                  Full Name *
                 </label>
 
-                <input
-                    type="text"
-                    name="customer_name"
-                    form="checkoutForm"
-                    class="form-input"
-                    value="{{ old('customer_name', $user->name) }}"
-                    required>
+                <input type="text" name="customer_name" form="checkoutForm" class="form-input"
+                  value="{{ old('customer_name', $user->name) }}" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">
+                  Phone Number *
+                </label>
+
+                <input type="tel" name="phone" form="checkoutForm" class="form-input"
+                  value="{{ old('phone', $user->phone) }}" required>
+              </div>
+
             </div>
 
             <div class="form-group">
-                <label class="form-label">
-                    Phone Number *
-                </label>
-
-                <input
-                    type="tel"
-                    name="phone"
-                    form="checkoutForm"
-                    class="form-input"
-                    value="{{ old('phone', $user->phone) }}"
-                    required>
-            </div>
-
-        </div>
-
-        <div class="form-group">
-            <label class="form-label">
+              <label class="form-label">
                 Address *
-            </label>
+              </label>
 
-            <input
-                type="text"
-                name="address"
-                form="checkoutForm"
-                class="form-input"
-                value="{{ old('address', $user->address) }}"
-                required>
-        </div>
-
-        <div class="form-grid-2">
-
-            <div class="form-group">
-                <label class="form-label">
-                    City *
-                </label>
-
-                <input
-                    type="text"
-                    name="city"
-                    form="checkoutForm"
-                    class="form-input"
-                    value="{{ old('city', $user->city) }}"
-                    required>
+              <input type="text" name="address" form="checkoutForm" class="form-input"
+                value="{{ old('address', $user->address) }}" required>
             </div>
 
-            <div class="form-group">
+            <div class="form-grid-2">
+
+              <div class="form-group">
                 <label class="form-label">
-                    State *
+                  City *
                 </label>
 
-                <input
-                    type="text"
-                    name="state"
-                    form="checkoutForm"
-                    class="form-input"
-                    value="{{ old('state', $user->state) }}"
-                    required>
-            </div>
+                <input type="text" name="city" form="checkoutForm" class="form-input"
+                  value="{{ old('city', $user->city) }}" required>
+              </div>
 
-        </div>
-
-        <div class="form-grid-2">
-
-            <div class="form-group">
+              <div class="form-group">
                 <label class="form-label">
-                    PIN Code *
+                  State *
                 </label>
 
-                <input
-                    type="text"
-                    name="postal_code"
-                    form="checkoutForm"
-                    class="form-input"
-                    value="{{ old('postal_code', $user->postal_code) }}"
-                    pattern="[0-9]{6}"
-                    maxlength="6"
-                    required>
+                <input type="text" name="state" form="checkoutForm" class="form-input"
+                  value="{{ old('state', $user->state) }}" required>
+              </div>
+
             </div>
 
-            <div class="form-group">
+            <div class="form-grid-2">
+
+              <div class="form-group">
                 <label class="form-label">
-                    Landmark (Optional)
+                  PIN Code *
                 </label>
 
-                <input
-                    type="text"
-                    name="landmark"
-                    form="checkoutForm"
-                    class="form-input"
-                    value="{{ old('landmark') }}">
+                <input type="text" name="postal_code" form="checkoutForm" class="form-input"
+                  value="{{ old('postal_code', $user->postal_code) }}" pattern="[0-9]{6}" maxlength="6" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">
+                  Landmark (Optional)
+                </label>
+
+                <input type="text" name="landmark" form="checkoutForm" class="form-input" value="{{ old('landmark') }}">
+              </div>
+
             </div>
 
-        </div>
+          </div>
 
-    </div>
-
-</section>
+        </section>
 
 
         <!-- 3. Payment Method -->
@@ -350,97 +294,114 @@ Step 1 &bull; Items in Your Order ({{ $cartItems->count() }} Products)          
                   </div>
                 </div>
                 <div class="pay-opt-right">
-                    <img src="https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=visa+mastercard+stripe+logo+icons+payment+methods&image_size=landscape_4_3" 
-                         alt="Cards" style="height: 24px;">
+                  <img
+                    src="https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=visa+mastercard+stripe+logo+icons+payment+methods&image_size=landscape_4_3"
+                    alt="Cards" style="height: 24px;">
                 </div>
               </div>
-            
+
+              <!-- Option 3: Razorpay -->
+              <div class="payment-option-card" id="payOptRazorpay" onclick="selectPayment('razorpay')">
+
+                <div class="pay-opt-left">
+
+                  <input type="radio" name="paymentMethod" id="radioRazorpay">
+
+                  <div>
+                    <div class="pay-opt-title">
+                      Razorpay (UPI / Cards / Net Banking)
+                    </div>
+
+                    <small>
+                      Pay securely using Razorpay
+                    </small>
+                  </div>
+
+                </div>
+
+                <div class="pay-opt-right">
+                  <strong style="color:#2563eb;">
+                    RAZORPAY
+                  </strong>
+                </div>
+
+              </div>
+
             </div>
           </div>
         </section>
       </div>
-<form id="checkoutForm"
-      action="{{ route('orders.place') }}"
-      method="POST">
-    @csrf
+      <form id="checkoutForm" action="{{ route('orders.place') }}" method="POST">
+        @csrf
 
-    <input type="hidden"
-           name="payment_method"
-           value="cod">
-</form>
+        <input type="hidden" name="payment_method" value="cod">
+      </form>
       <!-- Right Column: Order Summary Card -->
       <aside class="summary-col">
-       <div class="summary-card">
-@if($totalSavings > 0)
+        <div class="summary-card">
+          @if($totalSavings > 0)
 
-    <div class="savings-badge-box">
+            <div class="savings-badge-box">
 
-        <svg width="16" height="16"
-             viewBox="0 0 24 24"
-             fill="none"
-             stroke="currentColor"
-             stroke-width="2.5">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
 
-            <polyline points="20 6 9 17 4 12" />
+                <polyline points="20 6 9 17 4 12" />
 
-        </svg>
+              </svg>
 
-        <span>
-            You are saving
-            ₹{{ number_format($totalSavings, 2) }}
-            on this order
-        </span>
+              <span>
+                You are saving
+                ₹{{ number_format($totalSavings, 2) }}
+                on this order
+              </span>
 
-    </div>
+            </div>
 
-@endif
-    <h2 class="summary-title">Order Bill Summary</h2>
+          @endif
+          <h2 class="summary-title">Order Bill Summary</h2>
 
-    <div class="calc-row">
-        <span>Items Subtotal</span>
+          <div class="calc-row">
+            <span>Items Subtotal</span>
 
-        <span id="billSubtotal">
-            &#8377;{{ number_format($subtotal, 0) }}
-        </span>
-    </div>
+            <span id="billSubtotal">
+              &#8377;{{ number_format($subtotal, 0) }}
+            </span>
+          </div>
 
-    <div class="calc-row">
-        <span>Standard Express Delivery</span>
+          <div class="calc-row">
+            <span>Standard Express Delivery</span>
 
-        <span id="billDelivery">
-            @if($deliveryFee > 0)
+            <span id="billDelivery">
+              @if($deliveryFee > 0)
                 &#8377;{{ number_format($deliveryFee, 0) }}
-            @else
+              @else
                 <span style="color: #166534; font-weight: 700;">FREE</span>
-            @endif
-        </span>
-    </div>
+              @endif
+            </span>
+          </div>
 
-    <div class="calc-row total-row">
+          <div class="calc-row total-row">
 
-        <span>Total Bill Amount</span>
+            <span>Total Bill Amount</span>
 
-        <span style="color: var(--primary-teal);" id="billTotal">
-            &#8377;{{ number_format($total, 0) }}
-        </span>
+            <span style="color: var(--primary-teal);" id="billTotal">
+              &#8377;{{ number_format($total, 0) }}
+            </span>
 
-    </div>
+          </div>
 
-   <button type="submit"
-        form="checkoutForm"
-        class="btn-place-order"
-        @if($cartItems->isEmpty()) disabled @endif>
+          <button type="submit" form="checkoutForm" class="btn-place-order" @if($cartItems->isEmpty()) disabled @endif>
 
-    Place Order •
-    ₹{{ number_format($total, 0) }}
+            Place Order •
+            ₹{{ number_format($total, 0) }}
 
-</button>
+          </button>
 
-    <div style="font-size: 11px; color: var(--muted); text-align: center; line-height: 1.4;">
-        By placing your order, you agree to Shopkart's Terms of Sale &amp; Delivery Policies.
-    </div>
+          <div style="font-size: 11px; color: var(--muted); text-align: center; line-height: 1.4;">
+            By placing your order, you agree to Shopkart's Terms of Sale &amp; Delivery Policies.
+          </div>
 
-</div>
+        </div>
       </aside>
     </div>
   </main>
@@ -473,30 +434,215 @@ Step 1 &bull; Items in Your Order ({{ $cartItems->count() }} Products)          
 
   <script>
     function selectPayment(mode) {
-      document.getElementById('payOptCod').classList.toggle('active', mode === 'cod');
-      document.getElementById('payOptStripe').classList.toggle('active', mode === 'stripe');
-      
-      document.getElementById('radioCod').checked = (mode === 'cod');
-      document.getElementById('radioStripe').checked = (mode === 'stripe');
-      
-      document.querySelector('input[name="payment_method"]').value = mode;
+
+      document.getElementById('payOptCod')
+        .classList.toggle('active', mode === 'cod');
+
+      document.getElementById('payOptStripe')
+        .classList.toggle('active', mode === 'stripe');
+
+      document.getElementById('payOptRazorpay')
+        .classList.toggle('active', mode === 'razorpay');
+
+      document.getElementById('radioCod').checked =
+        mode === 'cod';
+
+      document.getElementById('radioStripe').checked =
+        mode === 'stripe';
+
+      document.getElementById('radioRazorpay').checked =
+        mode === 'razorpay';
+
+      document.querySelector(
+        'input[name="payment_method"]'
+      ).value = mode;
     }
 
     function changeCartQty(button, change) {
-        const form = button.closest('form');
-        const input = form.querySelector('input[name="quantity"]');
-        const currentQty = parseInt(input.value, 10);
-        const maxQty = parseInt(input.getAttribute('max'), 10) || 99;
-        const newQty = currentQty + change;
+      const form = button.closest('form');
+      const input = form.querySelector('input[name="quantity"]');
+      const currentQty = parseInt(input.value, 10);
+      const maxQty = parseInt(input.getAttribute('max'), 10) || 99;
+      const newQty = currentQty + change;
 
-        if (newQty < 1 || newQty > maxQty) {
+      if (newQty < 1 || newQty > maxQty) {
+        return;
+      }
+
+      input.value = newQty;
+      form.submit();
+    }
+  </script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+
+document.getElementById('checkoutForm').addEventListener(
+    'submit',
+    async function(e) {
+
+        const form = this;
+
+        const paymentMethod = form.querySelector(
+            'input[name="payment_method"]'
+        ).value;
+
+        // Keep existing COD and Stripe processing
+        if (paymentMethod !== 'razorpay') {
             return;
         }
 
-        input.value = newQty;
-        form.submit();
+        e.preventDefault();
+
+        const button = document.querySelector(
+            '.btn-place-order'
+        );
+
+        button.disabled = true;
+        button.innerText = 'Preparing Payment...';
+
+        try {
+
+            // Step 1: Create Razorpay order from Laravel
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                body: new FormData(form)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.status) {
+                throw new Error(
+                    data.message || 'Unable to create payment.'
+                );
+            }
+
+            // Step 2: Open Razorpay Checkout
+            const options = {
+
+                key: data.key,
+
+                amount: data.amount,
+
+                currency: data.currency,
+
+                name: 'Shopkart',
+
+                description: 'Shopkart Order Payment',
+
+                order_id: data.order_id,
+
+                prefill: data.prefill,
+
+                theme: {
+                    color: '#234987'
+                },
+
+                handler: async function(paymentResponse) {
+
+                    // Step 3: Send payment details to Laravel
+                    const verifyData = new FormData();
+
+                    verifyData.append(
+                        '_token',
+                        form.querySelector(
+                            'input[name="_token"]'
+                        ).value
+                    );
+
+                    verifyData.append(
+                        'razorpay_payment_id',
+                        paymentResponse.razorpay_payment_id
+                    );
+
+                    verifyData.append(
+                        'razorpay_order_id',
+                        paymentResponse.razorpay_order_id
+                    );
+
+                    verifyData.append(
+                        'razorpay_signature',
+                        paymentResponse.razorpay_signature
+                    );
+
+                    try {
+
+                        const verifyResponse = await fetch(
+                            '{{ route("payment.razorpay.verify") }}',
+                            {
+                                method: 'POST',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json'
+                                },
+                                body: verifyData
+                            }
+                        );
+
+                        const result = await verifyResponse.json();
+
+                        if (!verifyResponse.ok || !result.status) {
+                            throw new Error(
+                                result.message ||
+                                'Payment verification failed.'
+                            );
+                        }
+
+                        // Step 4: Redirect to My Orders
+                        window.location.href = result.redirect_url;
+
+                    } catch (error) {
+
+                        alert(error.message);
+
+                        button.disabled = false;
+                        button.innerText = 'Retry Payment';
+
+                    }
+                },
+
+                modal: {
+                    ondismiss: function() {
+                        button.disabled = false;
+                        button.innerText = 'Place Order';
+                    }
+                }
+
+            };
+
+            const razorpay = new Razorpay(options);
+
+            razorpay.on('payment.failed', function(response) {
+
+                alert(
+                    response.error.description ||
+                    'Payment failed. Please try again.'
+                );
+
+                button.disabled = false;
+                button.innerText = 'Retry Payment';
+
+            });
+
+            razorpay.open();
+
+        } catch (error) {
+
+            alert(error.message);
+
+            button.disabled = false;
+            button.innerText = 'Place Order';
+
+        }
+
     }
-  </script>
+);
+
+</script>
 </body>
 
 </html>

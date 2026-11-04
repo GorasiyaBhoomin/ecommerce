@@ -311,6 +311,108 @@
                 <input type="file" name="default_images[]" id="defaultImagesInput" class="input-text" multiple accept="image/png,image/jpeg,image/webp" style="padding: 10px; width: 100%; background: #FFFFFF;">
                 <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">Supports JPG, PNG, WEBP up to 5MB each.</div>
               </div>
+
+              <!-- Dummy / Sample CSV File For Upload (After Default Product Images) -->
+              <div class="form-group" style="margin-top: 24px; padding-top: 20px; border-top: 1px dashed var(--border);">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+                  <div>
+                    <label style="display: block; font-weight: 700; font-size: 14px; margin-bottom: 4px; color: var(--ink);">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -3px; margin-right: 4px; color: var(--primary-teal);">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="12" y1="18" x2="12" y2="12" />
+                        <line x1="9" y1="15" x2="12" y2="12" />
+                        <line x1="15" y1="15" x2="12" y2="12" />
+                      </svg>
+                      Dummy CSV File For Upload
+                    </label>
+                    <div style="font-size: 12px; color: var(--muted);">
+                      Use this pre-configured dummy template. It contains real sample products, variants, images, and specifications ready to import.
+                    </div>
+                  </div>
+
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <a href="{{ route('admin.products.import.sample', $selectedCategoryId ? ['category_id' => $selectedCategoryId] : []) }}"
+                       class="btn-sample-download" id="downloadSampleBtn"
+                       style="background: #F0FDFA; border-color: #99F6E4; color: #0F766E;">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      Download Dummy CSV
+                    </a>
+                    <a href="{{ asset('samples/dummy_products_import.csv') }}" download="dummy_products_import.csv" class="btn-sample-download" title="Direct download static sample">
+                      Direct File (.csv)
+                    </a>
+                  </div>
+                </div>
+
+                <!-- Template Structure Preview Box -->
+                <div style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 10px; padding: 14px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                    <span style="font-size: 12px; font-weight: 700; color: var(--ink);">Dummy File Content Preview:</span>
+                    <span style="font-size: 11px; background: #ECFDF5; color: #065F46; padding: 2px 8px; border-radius: 4px; font-weight: 600;">100% Valid Format</span>
+                  </div>
+
+                  <div style="overflow-x: auto;">
+                    <table class="spec-table" style="background: #FFFFFF; border-radius: 6px; overflow: hidden; border: 1px solid #E2E8F0; margin-top: 0;">
+                      <thead>
+                        <tr>
+                          <th>name <span class="col-badge-req">Req</span></th>
+                          <th>actual_price <span class="col-badge-req">Req</span></th>
+                          <th>Color <span class="col-badge-req">Variant</span></th>
+                          <th>STORAGE <span class="col-badge-req">Variant</span></th>
+                          <th>RAM <span class="col-badge-req">Variant</span></th>
+                          <th>discounted_price <span class="col-badge-opt">Opt</span></th>
+                          <th>stock_qty <span class="col-badge-opt">Opt</span></th>
+                          <th>images <span class="col-badge-opt">Opt (Min 3)</span></th>
+                          <th>specifications <span class="col-badge-opt">Opt</span></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td><strong>Galaxy Phone Neo</strong></td>
+                          <td>18999</td>
+                          <td><span style="background: #FEE2E2; color: #991B1B; padding: 1px 6px; border-radius: 4px;">Red</span></td>
+                          <td>128GB</td>
+                          <td>6GB</td>
+                          <td>16999</td>
+                          <td>25</td>
+                          <td>3 Unsplash URLs</td>
+                          <td>Brand=Shopkart|Display=6.5 inch|Battery=5000mAh</td>
+                        </tr>
+                        <tr>
+                          <td><strong>Galaxy Phone Neo</strong></td>
+                          <td>18999</td>
+                          <td><span style="background: #DBEAFE; color: #1E40AF; padding: 1px 6px; border-radius: 4px;">Blue</span></td>
+                          <td>128GB</td>
+                          <td>6GB</td>
+                          <td>16999</td>
+                          <td>15</td>
+                          <td><em>(inherits row 1)</em></td>
+                          <td><em>(inherits row 1)</em></td>
+                        </tr>
+                        <tr>
+                          <td><strong>Pulse Earbuds Pro</strong></td>
+                          <td>2999</td>
+                          <td><span style="background: #DCFCE7; color: #166534; padding: 1px 6px; border-radius: 4px;">Green</span></td>
+                          <td>64GB</td>
+                          <td>4GB</td>
+                          <td>2499</td>
+                          <td>40</td>
+                          <td>3 Unsplash URLs</td>
+                          <td>Brand=Shopkart|Battery=36 Hours|Bluetooth=5.3</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div style="margin-top: 10px; font-size: 11px; color: var(--muted); line-height: 1.5;">
+                    💡 <strong>Instructions:</strong> Click <strong>Download Dummy CSV</strong> above, save it, and then simply choose your <strong>Target Category</strong> and upload this file into the <strong>Select CSV File</strong> dropzone above!
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -402,6 +504,16 @@
           updateFileDisplay(files[0]);
         }
       });
+
+      // Category change updates sample download link
+      var categorySelect = document.getElementById('categorySelect');
+      var downloadSampleBtn = document.getElementById('downloadSampleBtn');
+      if (categorySelect && downloadSampleBtn) {
+        categorySelect.addEventListener('change', function () {
+          var base = "{{ route('admin.products.import.sample') }}";
+          downloadSampleBtn.href = this.value ? base + '?category_id=' + this.value : base;
+        });
+      }
 
       // Mobile Menu
       var mobileBtn = document.getElementById('mobileMenuBtn');

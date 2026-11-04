@@ -64,9 +64,21 @@
         <h2 class="section-title">Explore Store Catalog</h2>
         <div style="font-size: 13px; color: var(--muted);" id="catalogResultCount">
           @if ($search !== '')
-            Showing {{ count($products) }} of {{ $totalProducts }} products for &ldquo;{{ $search }}&rdquo;
+            @if ($products->total() === 0)
+              Showing 0 of {{ $totalProducts }} products for &ldquo;{{ $search }}&rdquo;
+            @elseif ($products->firstItem() === $products->lastItem())
+              Showing {{ $products->firstItem() }} of {{ $totalProducts }} products for &ldquo;{{ $search }}&rdquo;
+            @else
+              Showing {{ $products->firstItem() }}-{{ $products->lastItem() }} of {{ $totalProducts }} products for &ldquo;{{ $search }}&rdquo;
+            @endif
           @else
-            Showing {{ count($products) }} of {{ $totalProducts }} products
+            @if ($products->total() === 0)
+              Showing 0 of {{ $totalProducts }} products
+            @elseif ($products->firstItem() === $products->lastItem())
+              Showing {{ $products->firstItem() }} of {{ $totalProducts }} products
+            @else
+              Showing {{ $products->firstItem() }}-{{ $products->lastItem() }} of {{ $totalProducts }} products
+            @endif
           @endif
         </div>
       </div>
@@ -142,6 +154,35 @@
         </div>
       @endforelse
     </section>
+
+    @if ($products->hasPages())
+      <nav class="catalog-pagination" aria-label="Catalog pagination">
+        {{-- Previous Page Link --}}
+        @if ($products->onFirstPage())
+          <span class="pagination-btn disabled" aria-disabled="true">&larr; Previous</span>
+        @else
+          <a href="{{ $products->previousPageUrl() }}#catalogSection" class="pagination-btn" rel="prev">&larr; Previous</a>
+        @endif
+
+        {{-- Page Numbers --}}
+        <div class="pagination-numbers">
+          @for ($page = 1; $page <= $products->lastPage(); $page++)
+            @if ($page == $products->currentPage())
+              <span class="pagination-number active" aria-current="page">{{ $page }}</span>
+            @else
+              <a href="{{ $products->url($page) }}#catalogSection" class="pagination-number">{{ $page }}</a>
+            @endif
+          @endfor
+        </div>
+
+        {{-- Next Page Link --}}
+        @if ($products->hasMorePages())
+          <a href="{{ $products->nextPageUrl() }}#catalogSection" class="pagination-btn" rel="next">Next &rarr;</a>
+        @else
+          <span class="pagination-btn disabled" aria-disabled="true">Next &rarr;</span>
+        @endif
+      </nav>
+    @endif
   </main>
 
   <!-- Footer -->

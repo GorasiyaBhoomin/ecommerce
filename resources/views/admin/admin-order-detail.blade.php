@@ -319,15 +319,56 @@
 <div class="info-item">
     <span class="info-label">Payment Method</span>
     <span class="info-value">
-        {{ ucfirst($order->payment_method) }}
+        @if(strtolower($order->payment_method ?? '') === 'razorpay')
+            Razorpay (UPI / Cards / Net Banking)
+        @elseif(strtolower($order->payment_method ?? '') === 'stripe')
+            Stripe (Card Payment)
+        @elseif(strtolower($order->payment_method ?? '') === 'cod')
+            Cash on Delivery (COD)
+        @else
+            {{ ucfirst($order->payment_method ?? 'N/A') }}
+        @endif
     </span>
 </div>
+
+@if(strtolower($order->payment_method ?? '') === 'razorpay')
+<div class="info-item">
+    <span class="info-label">Razorpay Payment ID</span>
+    <span class="info-value" style="font-size: 12px; font-weight: 700; color: var(--primary-teal); overflow-wrap: anywhere;">
+        {{ $order->razorpay_payment_id ?: $order->payment_id ?: '—' }}
+    </span>
+</div>
+@if($order->razorpay_order_id)
+<div class="info-item">
+    <span class="info-label">Razorpay Order ID</span>
+    <span class="info-value" style="font-size: 12px; overflow-wrap: anywhere;">
+        {{ $order->razorpay_order_id }}
+    </span>
+</div>
+@endif
+@elseif(strtolower($order->payment_method ?? '') === 'stripe')
+<div class="info-item">
+    <span class="info-label">Stripe Payment ID</span>
+    <span class="info-value" style="font-size: 12px; font-weight: 700; color: #4F46E5; overflow-wrap: anywhere;">
+        {{ $order->stripe_payment_id ?: $order->payment_id ?: '—' }}
+    </span>
+</div>
+@if($order->stripe_session_id)
+<div class="info-item">
+    <span class="info-label">Stripe Session ID</span>
+    <span class="info-value" style="font-size: 12px; overflow-wrap: anywhere;">
+        {{ $order->stripe_session_id }}
+    </span>
+</div>
+@endif
+@else
 <div class="info-item">
     <span class="info-label">Payment ID</span>
     <span class="info-value" style="font-size: 12px; overflow-wrap: anywhere;">
         {{ $order->payment_id ?: '—' }}
     </span>
 </div>
+@endif
 
 <div class="info-item">
     <span class="info-label">Payment Status</span>

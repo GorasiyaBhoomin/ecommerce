@@ -10,12 +10,12 @@ use App\Http\Controllers\API\ProfileController;
 use App\Http\Controllers\API\ReturnExchangeController;
 use App\Models\cart_items;
 use App\Models\Language;
+use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProductImage;
 use App\Models\ProductSpecification;
 use App\Models\ProductVariant;
 use App\Models\User;
-use App\Models\Order;
 use App\Models\VariantGroup;
 use App\Models\VariantValue;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +30,8 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 /*
 |--------------------------------------------------------------------------
@@ -139,7 +141,7 @@ Route::get('/users', function () {
 
 Route::get('/users/{id}', function ($id) {
     $user = User::find($id);
-    if (!$user) {
+    if (! $user) {
         return response()->json([
             'status' => false,
             'message' => 'User not found',

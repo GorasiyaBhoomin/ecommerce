@@ -21,9 +21,13 @@ class AdminController extends Controller
 
     public function index(Request $request)
     {
-        $orders = Order::with('items')
-            ->latest()
-            ->get();
+        $statusFilter = $request->string('status')->trim()->toString();
+        $search = $request->string('search')->trim()->toString();
+        if ($search === '') {
+            $search = $request->string('q')->trim()->toString();
+        }
+
+        $allOrders = Order::with('items')->latest('id')->get();
 
         $statuses = [
             'received' => ['pending', 'received'],
@@ -31,13 +35,13 @@ class AdminController extends Controller
             'shipping' => ['shipped', 'shipping'],
             'out_for_delivery' => ['out_for_delivery'],
             'delivered' => ['delivered'],
+            'cancelled' => ['cancelled'],
         ];
 
         $summary = [];
 
         foreach ($statuses as $key => $values) {
-
-            $filteredOrders = $orders->filter(function ($order) use ($values) {
+            $filteredOrders = $allOrders->filter(function ($order) use ($values) {
                 return in_array(
                     strtolower(trim($order->order_status ?? 'pending')),
                     $values
@@ -50,7 +54,42 @@ class AdminController extends Controller
             ];
         }
 
-        return view('admin.admin-orders', compact('orders', 'summary'));
+        $ordersQuery = Order::with('items')->latest('id');
+
+        if ($statusFilter !== '' && $statusFilter !== 'all') {
+            $validStatusValues = $statuses[$statusFilter] ?? [$statusFilter];
+            $ordersQuery->whereIn('order_status', $validStatusValues);
+        }
+
+        if ($search !== '') {
+            $cleanSearch = ltrim(strtolower($search), '#');
+            if (str_starts_with($cleanSearch, 'sk-')) {
+                $cleanSearch = substr($cleanSearch, 3);
+            }
+
+            $ordersQuery->where(function ($q) use ($search, $cleanSearch) {
+                $q->where('customer_name', 'like', '%'.$search.'%')
+                    ->orWhere('phone', 'like', '%'.$search.'%')
+                    ->orWhere('city', 'like', '%'.$search.'%')
+                    ->orWhere('payment_id', 'like', '%'.$search.'%')
+                    ->orWhere('razorpay_payment_id', 'like', '%'.$search.'%')
+                    ->orWhere('razorpay_order_id', 'like', '%'.$search.'%')
+                    ->orWhere('stripe_payment_id', 'like', '%'.$search.'%');
+
+                if (is_numeric($cleanSearch)) {
+                    $q->orWhere('id', (int) $cleanSearch);
+                }
+
+                $q->orWhereHas('items', function ($iQ) use ($search) {
+                    $iQ->where('product_name', 'like', '%'.$search.'%');
+                });
+            });
+        }
+
+        $orders = $ordersQuery->paginate(6)->withQueryString();
+        $totalOrdersCount = $allOrders->count();
+
+        return view('admin.admin-orders', compact('orders', 'summary', 'statusFilter', 'search', 'totalOrdersCount'));
     }
 
     public function profile()

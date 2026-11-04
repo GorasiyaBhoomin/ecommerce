@@ -73,7 +73,7 @@
              onclick="filterByStatus('{{ $status }}')"
              role="button"
              tabindex="0"
-             style="cursor: pointer; transition: all 0.2s ease;">
+             style="cursor: pointer; transition: all 0.2s ease; {{ ($statusFilter ?? '') === $status ? 'outline: 2px solid #0d9488; transform: translateY(-2px);' : '' }}">
 
             <div class="status-card-header">
                 <span class="status-card-title">
@@ -101,19 +101,35 @@
         <section class="orders-card" aria-label="Customer orders list">
           <div class="orders-toolbar">
             <div class="filter-pills-wrap">
-              <button class="filter-pill active" data-status="all" onclick="filterByStatus('all')">
-                  {{ __('All Orders') }} ({{ $orders->count() }})
+              <button class="filter-pill {{ empty($statusFilter) || $statusFilter === 'all' ? 'active' : '' }}" data-status="all" onclick="filterByStatus('all')">
+                  {{ __('All Orders') }} ({{ $totalOrdersCount ?? $orders->total() }})
               </button>
-              <button class="filter-pill" data-status="received" onclick="filterByStatus('received')">{{ __('Received') }}</button>
-              <button class="filter-pill" data-status="process" onclick="filterByStatus('process')">{{ __('Process') }}</button>
-              <button class="filter-pill" data-status="shipping" onclick="filterByStatus('shipping')">{{ __('Shipping') }}</button>
-              <button class="filter-pill" data-status="out_for_delivery" onclick="filterByStatus('out_for_delivery')">{{ __('Out for delivery') }}</button>
-              <button class="filter-pill" data-status="delivered" onclick="filterByStatus('delivered')">{{ __('Delivered') }}</button>
-              <button class="filter-pill" data-status="cancelled" onclick="filterByStatus('cancelled')">{{ __('Cancelled') }}</button>
+              <button class="filter-pill {{ ($statusFilter ?? '') === 'received' ? 'active' : '' }}" data-status="received" onclick="filterByStatus('received')">
+                  {{ __('Received') }} ({{ $summary['received']['count'] ?? 0 }})
+              </button>
+              <button class="filter-pill {{ ($statusFilter ?? '') === 'process' ? 'active' : '' }}" data-status="process" onclick="filterByStatus('process')">
+                  {{ __('Process') }} ({{ $summary['process']['count'] ?? 0 }})
+              </button>
+              <button class="filter-pill {{ ($statusFilter ?? '') === 'shipping' ? 'active' : '' }}" data-status="shipping" onclick="filterByStatus('shipping')">
+                  {{ __('Shipping') }} ({{ $summary['shipping']['count'] ?? 0 }})
+              </button>
+              <button class="filter-pill {{ ($statusFilter ?? '') === 'out_for_delivery' ? 'active' : '' }}" data-status="out_for_delivery" onclick="filterByStatus('out_for_delivery')">
+                  {{ __('Out for delivery') }} ({{ $summary['out_for_delivery']['count'] ?? 0 }})
+              </button>
+              <button class="filter-pill {{ ($statusFilter ?? '') === 'delivered' ? 'active' : '' }}" data-status="delivered" onclick="filterByStatus('delivered')">
+                  {{ __('Delivered') }} ({{ $summary['delivered']['count'] ?? 0 }})
+              </button>
+              <button class="filter-pill {{ ($statusFilter ?? '') === 'cancelled' ? 'active' : '' }}" data-status="cancelled" onclick="filterByStatus('cancelled')">
+                  {{ __('Cancelled') }} ({{ $summary['cancelled']['count'] ?? 0 }})
+              </button>
             </div>
-<div class="results-count" id="tableResultCount">
-    {{ __('Showing') }} {{ $orders->count() }} {{ __('Orders') }}
-</div>          </div>
+            <div class="results-count" id="tableResultCount">
+                @if ($orders->total() === 0)
+                    {{ __('Showing 0 Orders') }}
+                @else
+                    {{ __('Showing') }} {{ $orders->firstItem() }}-{{ $orders->lastItem() }} {{ __('of') }} {{ $orders->total() }} {{ __('Orders') }}
+                @endif
+            </div>          </div>
 
           <div class="table-responsive">
             <table class="orders-table">
@@ -148,6 +164,14 @@
             $productNames = $order->items
                 ->pluck('product_name')
                 ->implode(', ');
+
+            $payRef = implode(' ', array_filter([
+                $order->payment_method,
+                $order->payment_id,
+                $order->razorpay_payment_id,
+                $order->razorpay_order_id,
+                $order->stripe_payment_id,
+            ]));
         @endphp
 
         <tr
@@ -160,7 +184,8 @@
                 $order->customer_name.' '.
                 $order->phone.' '.
                 ($order->city ?? '').' '.
-                $productNames
+                $productNames.' '.
+                $payRef
             ) }}"
         >
 
@@ -208,6 +233,17 @@
                 <span class="total-amount">
                     ₹{{ number_format($order->total_amount, 2) }}
                 </span>
+                <div style="font-size: 11px; margin-top: 3px; font-weight: 600;">
+                    @if(strtolower($order->payment_method ?? '') === 'razorpay')
+                        <span style="color: #0d9488;" title="Razorpay Payment">Razorpay: {{ $order->razorpay_payment_id ?: $order->payment_id ?: $order->razorpay_order_id ?: 'Paid' }}</span>
+                    @elseif(strtolower($order->payment_method ?? '') === 'stripe')
+                        <span style="color: #4f46e5;" title="Stripe Payment">Stripe: {{ $order->stripe_payment_id ?: $order->payment_id ?: 'Paid' }}</span>
+                    @elseif(strtolower($order->payment_method ?? '') === 'cod')
+                        <span style="color: #b45309;" title="Cash on Delivery">COD ({{ ucfirst($order->payment_status) }})</span>
+                    @else
+                        <span style="color: #64748b;">{{ strtoupper($order->payment_method ?? 'N/A') }} ({{ ucfirst($order->payment_status) }})</span>
+                    @endif
+                </div>
             </td>
 
             <!-- ORDER DATE -->
@@ -274,9 +310,44 @@
 
                     <p>
                         <strong>Payment:</strong>
-                        {{ strtoupper($order->payment_method) }}
+                        @if(strtolower($order->payment_method ?? '') === 'razorpay')
+                            Razorpay (UPI / Cards / Net Banking)
+                        @elseif(strtolower($order->payment_method ?? '') === 'stripe')
+                            Stripe (Card Payment)
+                        @elseif(strtolower($order->payment_method ?? '') === 'cod')
+                            Cash on Delivery (COD)
+                        @else
+                            {{ strtoupper($order->payment_method ?? 'N/A') }}
+                        @endif
                         ({{ ucfirst($order->payment_status) }})
                     </p>
+
+                    @if(strtolower($order->payment_method ?? '') === 'razorpay')
+                        @if($order->razorpay_payment_id || $order->payment_id)
+                            <p>
+                                <strong>Razorpay Payment ID:</strong>
+                                <code>{{ $order->razorpay_payment_id ?: $order->payment_id }}</code>
+                            </p>
+                        @endif
+                        @if($order->razorpay_order_id)
+                            <p>
+                                <strong>Razorpay Order ID:</strong>
+                                <code>{{ $order->razorpay_order_id }}</code>
+                            </p>
+                        @endif
+                    @elseif(strtolower($order->payment_method ?? '') === 'stripe')
+                        @if($order->stripe_payment_id || $order->payment_id)
+                            <p>
+                                <strong>Stripe Payment ID:</strong>
+                                <code>{{ $order->stripe_payment_id ?: $order->payment_id }}</code>
+                            </p>
+                        @endif
+                    @elseif($order->payment_id)
+                        <p>
+                            <strong>Payment ID:</strong>
+                            <code>{{ $order->payment_id }}</code>
+                        </p>
+                    @endif
 
                     <p>
                         <strong>Subtotal:</strong>
@@ -320,12 +391,46 @@
           </div>
 
           <div class="pagination-bar">
-    <div>
-        Showing
-        <span id="visibleRowCount">{{ $orders->count() }}</span>
-        of {{ $orders->count() }} orders recorded
-    </div>
-</div>
+            <div>
+                Showing
+                <span id="visibleRowCount">
+                    @if ($orders->total() === 0)
+                        0
+                    @else
+                        {{ $orders->firstItem() }}-{{ $orders->lastItem() }}
+                    @endif
+                </span>
+                of {{ $orders->total() }} orders recorded
+            </div>
+            @if ($orders->hasPages())
+                <nav class="pagination-controls" aria-label="Orders pagination">
+                    {{-- Previous Page Link --}}
+                    @if ($orders->onFirstPage())
+                        <span class="pagination-btn disabled" aria-disabled="true">&larr; Previous</span>
+                    @else
+                        <a href="{{ $orders->previousPageUrl() }}" class="pagination-btn" rel="prev">&larr; Previous</a>
+                    @endif
+
+                    {{-- Page Numbers --}}
+                    <div class="pagination-numbers">
+                        @for ($page = 1; $page <= $orders->lastPage(); $page++)
+                            @if ($page == $orders->currentPage())
+                                <span class="pagination-number active" aria-current="page">{{ $page }}</span>
+                            @else
+                                <a href="{{ $orders->url($page) }}" class="pagination-number">{{ $page }}</a>
+                            @endif
+                        @endfor
+                    </div>
+
+                    {{-- Next Page Link --}}
+                    @if ($orders->hasMorePages())
+                        <a href="{{ $orders->nextPageUrl() }}" class="pagination-btn" rel="next">Next &rarr;</a>
+                    @else
+                        <span class="pagination-btn disabled" aria-disabled="true">Next &rarr;</span>
+                    @endif
+                </nav>
+            @endif
+          </div>
         </section>
       </div>
     </main>
@@ -342,38 +447,39 @@
     }
 
     // Filter Table by Status
-    let currentFilter = 'all';
+    let currentFilter = @json($statusFilter ?: 'all');
 
     function filterByStatus(status) {
-      currentFilter = status;
-      const pills = document.querySelectorAll('.filter-pill');
-      pills.forEach(pill => {
-        if (pill.getAttribute('data-status') === status) {
-          pill.classList.add('active');
-        } else {
-          pill.classList.remove('active');
-        }
-      });
-
-      // Highlight active card
-      document.querySelectorAll('.status-card[data-card-status]').forEach(card => {
-        if (card.dataset.cardStatus === status) {
-          card.style.outline = '2px solid #0d9488';
-          card.style.transform = 'translateY(-2px)';
-        } else {
-          card.style.outline = 'none';
-          card.style.transform = 'none';
-        }
-      });
-
-      applyFilters();
+      const url = new URL(window.location.href);
+      if (status && status !== 'all') {
+        url.searchParams.set('status', status);
+      } else {
+        url.searchParams.delete('status');
+      }
+      url.searchParams.delete('page');
+      window.location.href = url.toString();
     }
 
-    // Live Search
+    // Live Search & Enter to Search across all pages
     const searchInput = document.getElementById('orderSearchInput');
     const clearOrderSearchBtn = document.getElementById('clearOrderSearchBtn');
 
     if (searchInput) {
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const q = searchInput.value.trim();
+          const url = new URL(window.location.href);
+          if (q) {
+            url.searchParams.set('search', q);
+          } else {
+            url.searchParams.delete('search');
+          }
+          url.searchParams.delete('page');
+          window.location.href = url.toString();
+        }
+      });
+
       searchInput.addEventListener('input', () => {
         if (clearOrderSearchBtn) {
           clearOrderSearchBtn.style.display = searchInput.value ? 'block' : 'none';
@@ -387,8 +493,16 @@
         if (searchInput) {
           searchInput.value = '';
           clearOrderSearchBtn.style.display = 'none';
-          applyFilters();
-          searchInput.focus();
+          const url = new URL(window.location.href);
+          if (url.searchParams.has('search') || url.searchParams.has('q')) {
+            url.searchParams.delete('search');
+            url.searchParams.delete('q');
+            url.searchParams.delete('page');
+            window.location.href = url.toString();
+          } else {
+            applyFilters();
+            searchInput.focus();
+          }
         }
       });
     }

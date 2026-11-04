@@ -634,6 +634,10 @@ class OrderController extends Controller
                     'total_amount' => (float) $order->total_amount,
                     'payment_method' => strtoupper((string) $order->payment_method),
                     'payment_status' => $order->payment_status,
+                    'payment_id' => $order->payment_id,
+                    'razorpay_payment_id' => $order->razorpay_payment_id,
+                    'razorpay_order_id' => $order->razorpay_order_id,
+                    'payment_reference_id' => $order->payment_reference_id,
                 ],
                 'items' => $order->items->map(fn ($item) => [
                     'product_name' => $item->product_name,
@@ -788,6 +792,10 @@ class OrderController extends Controller
             'order_status' => $order->order_status ?? 'pending',
             'payment_status' => $order->payment_status ?? 'pending',
             'payment_method' => $order->payment_method,
+            'payment_id' => $order->payment_id,
+            'razorpay_payment_id' => $order->razorpay_payment_id,
+            'razorpay_order_id' => $order->razorpay_order_id,
+            'payment_reference_id' => $order->payment_reference_id,
             'subtotal' => (float) $order->subtotal,
             'delivery_fee' => (float) $order->delivery_fee,
             'total_amount' => (float) $order->total_amount,
@@ -807,6 +815,10 @@ class OrderController extends Controller
             ];
             $result['stripe_session_id'] = $order->stripe_session_id;
             $result['stripe_payment_id'] = $order->stripe_payment_id;
+            $result['razorpay_order_id'] = $order->razorpay_order_id;
+            $result['razorpay_payment_id'] = $order->razorpay_payment_id;
+            $result['payment_id'] = $order->payment_id;
+            $result['payment_reference_id'] = $order->payment_reference_id;
         }
 
         return $result;

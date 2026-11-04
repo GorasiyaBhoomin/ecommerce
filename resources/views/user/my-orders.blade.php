@@ -198,8 +198,22 @@
                     </span>
 
                     <span style="font-size:12px;">
-                        {{ strtoupper($order->payment_method) }}
-                        • {{ ucfirst($order->payment_status) }}
+                        @if(strtolower($order->payment_method ?? '') === 'razorpay')
+                            Razorpay • {{ ucfirst($order->payment_status) }}
+                            @if($order->razorpay_payment_id || $order->payment_id)
+                                <small style="display:block; color:#0d9488; font-weight:600;">Razorpay ID: {{ $order->razorpay_payment_id ?: $order->payment_id }}</small>
+                            @endif
+                        @elseif(strtolower($order->payment_method ?? '') === 'stripe')
+                            Stripe • {{ ucfirst($order->payment_status) }}
+                            @if($order->stripe_payment_id || $order->payment_id)
+                                <small style="display:block; color:#4f46e5; font-weight:600;">Payment ID: {{ $order->stripe_payment_id ?: $order->payment_id }}</small>
+                            @endif
+                        @else
+                            {{ strtoupper($order->payment_method ?? 'COD') }} • {{ ucfirst($order->payment_status) }}
+                            @if($order->payment_id)
+                                <small style="display:block; color:#64748b;">Payment ID: {{ $order->payment_id }}</small>
+                            @endif
+                        @endif
                     </span>
 
                 </div>
@@ -242,9 +256,43 @@
                 ({{ $order->phone }})
 
                 <br>
+                <strong>Payment Method:</strong>
+                @if(strtolower($order->payment_method ?? '') === 'razorpay')
+                    Razorpay (UPI / Cards / Net Banking)
+                @elseif(strtolower($order->payment_method ?? '') === 'stripe')
+                    Stripe (Card Payment)
+                @elseif(strtolower($order->payment_method ?? '') === 'cod')
+                    Cash on Delivery (COD)
+                @else
+                    {{ strtoupper($order->payment_method ?? 'N/A') }}
+                @endif
 
+                <br>
                 <strong>Payment Status:</strong>
                 {{ ucfirst($order->payment_status) }}
+
+                @if(strtolower($order->payment_method ?? '') === 'razorpay')
+                    @if($order->razorpay_payment_id || $order->payment_id)
+                        <br>
+                        <strong>Razorpay Payment ID:</strong>
+                        <code>{{ $order->razorpay_payment_id ?: $order->payment_id }}</code>
+                    @endif
+                    @if($order->razorpay_order_id)
+                        <br>
+                        <strong>Razorpay Order ID:</strong>
+                        <code>{{ $order->razorpay_order_id }}</code>
+                    @endif
+                @elseif(strtolower($order->payment_method ?? '') === 'stripe')
+                    @if($order->stripe_payment_id || $order->payment_id)
+                        <br>
+                        <strong>Stripe Payment ID:</strong>
+                        <code>{{ $order->stripe_payment_id ?: $order->payment_id }}</code>
+                    @endif
+                @elseif($order->payment_id)
+                    <br>
+                    <strong>Payment ID:</strong>
+                    <code>{{ $order->payment_id }}</code>
+                @endif
 
             </div>
 

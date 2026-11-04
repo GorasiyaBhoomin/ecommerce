@@ -155,8 +155,12 @@
           <div class="category-card-header">
             <div class="category-title-wrap">
               <h2 class="category-title">{{ $selectedCategory?->name ?? 'All Products' }}</h2>
-              <span class="category-badge-pill" id="productCountPill">{{ $products->total() }} Products &bull;
-                {{ $products->sum(fn ($product) => $product->variants->count()) }} Variants</span>
+              <span class="category-badge-pill" id="productCountPill">
+                {{ $products->total() }} Products
+                @if ($products->total() > 0)
+                  &bull; Showing {{ $products->firstItem() }}-{{ $products->lastItem() }}
+                @endif
+              </span>
             </div>
           </div>
           <div class="table-responsive">
@@ -265,11 +269,47 @@
             </table>
           </div>
 
-          @if ($products->hasPages())
-            <div style="padding: 16px 20px; border-top: 1px solid #E2E8F0;">
-              {{ $products->links() }}
+          <div class="pagination-bar" style="padding: 14px 20px; border-top: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; background: #FFFFFF; font-size: 13px; color: var(--muted, #64748B);">
+            <div>
+              Showing
+              <span>
+                @if ($products->total() === 0)
+                  0
+                @else
+                  {{ $products->firstItem() }}-{{ $products->lastItem() }}
+                @endif
+              </span>
+              of {{ $products->total() }} products recorded
             </div>
-          @endif
+            @if ($products->hasPages())
+              <nav class="pagination-controls" aria-label="Products pagination">
+                {{-- Previous Page Link --}}
+                @if ($products->onFirstPage())
+                  <span class="pagination-btn disabled" aria-disabled="true">&larr; Previous</span>
+                @else
+                  <a href="{{ $products->previousPageUrl() }}" class="pagination-btn" rel="prev">&larr; Previous</a>
+                @endif
+
+                {{-- Page Numbers --}}
+                <div class="pagination-numbers">
+                  @for ($page = 1; $page <= $products->lastPage(); $page++)
+                    @if ($page == $products->currentPage())
+                      <span class="pagination-number active" aria-current="page">{{ $page }}</span>
+                    @else
+                      <a href="{{ $products->url($page) }}" class="pagination-number">{{ $page }}</a>
+                    @endif
+                  @endfor
+                </div>
+
+                {{-- Next Page Link --}}
+                @if ($products->hasMorePages())
+                  <a href="{{ $products->nextPageUrl() }}" class="pagination-btn" rel="next">Next &rarr;</a>
+                @else
+                  <span class="pagination-btn disabled" aria-disabled="true">Next &rarr;</span>
+                @endif
+              </nav>
+            @endif
+          </div>
         </section>
 
        

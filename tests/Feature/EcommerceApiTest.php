@@ -1,5 +1,6 @@
 <?php
 
+use App\Mail\ResetPasswordMail;
 use App\Models\cart_items;
 use App\Models\Category;
 use App\Models\Order;
@@ -8,7 +9,11 @@ use App\Models\User;
 use App\Models\VariantGroup;
 use App\Models\VariantValue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 
 uses(RefreshDatabase::class);
 
@@ -485,4 +490,506 @@ test('admin panel web views support search and filter query parameters', functio
         ->get('/adminvariants?search=Color');
     $varSearch->assertOk()
         ->assertSee('Color');
+
+    // 6. Admin bulk import view and sample dummy CSV download
+    $importView = $this->withSession(['user_id' => $admin->id])
+        ->get('/adminimportproducts');
+    $importView->assertOk()
+        ->assertSee('Dummy CSV File For Upload')
+        ->assertSee('Download Dummy CSV');
+
+    $sampleCsv = $this->withSession(['user_id' => $admin->id])
+        ->get('/adminimportproducts/sample?category_id='.$category->id);
+    $sampleCsv->assertOk()
+        ->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+    expect($sampleCsv->streamedContent())->toContain('Galaxy Phone Neo')
+        ->toContain('actual_price');
+
+    // 7. CSV upload stores images into public/uploads/products folder
+    Http::fake([
+        'https://example.com/*' => Http::response('fake-binary-image', 200, ['Content-Type' => 'image/jpeg']),
+    ]);
+
+    $variantGroup->values()->create(['value' => 'Red', 'sku_suffix' => 'RED']);
+
+    $csvContent = implode("\n", [
+        'name,sku,actual_price,Color,images',
+        'Camera Drone,DRN-01,9999,Red,https://example.com/drone1.jpg;https://example.com/drone2.jpg;https://example.com/drone3.jpg',
+    ]);
+
+    $uploadedFile = UploadedFile::fake()->createWithContent('products.csv', $csvContent);
+
+    $uploadResp = $this->withSession(['user_id' => $admin->id])
+        ->post('/adminimportproducts', [
+            'category_id' => $category->id,
+            'csv_file' => $uploadedFile,
+        ]);
+
+    $uploadResp->assertRedirect(route('admin.products.index'));
+
+    $importedProduct = Product::where('name', 'Camera Drone')->first();
+    expect($importedProduct)->not->toBeNull();
+    expect($importedProduct->images)->toHaveCount(3);
+
+    foreach ($importedProduct->images as $img) {
+        expect($img->path)->toStartWith('uploads/products/');
+        expect(file_exists(public_path($img->path)))->toBeTrue();
+        if (file_exists(public_path($img->path))) {
+            unlink(public_path($img->path));
+        }
+    }
+});
+
+test('forgot password and reset password web and api flows work with email and token', function () {
+    Mail::fake();
+
+    $user = User::create([
+        'name' => 'Forgot Tester',
+        'email' => 'forgotuser@example.com',
+        'password' => Hash::make('oldpassword123'),
+        'phone' => '9444444444',
+        'role' => 'user',
+    ]);
+
+    // 1. Login page contains forgot password link
+    $loginPage = $this->get('/login');
+    $loginPage->assertOk()
+        ->assertSee(route('password.request'));
+
+    // 2. Forgot password page renders
+    $forgotPage = $this->get('/forgot-password');
+    $forgotPage->assertOk()
+        ->assertSee('Forgot Password?');
+
+    // 3. Post forgot password sends reset email & creates token
+    $postForgot = $this->post('/forgot-password', [
+        'email' => 'forgotuser@example.com',
+    ]);
+    $postForgot->assertSessionHas('success');
+
+    $tokenRecord = DB::table('password_reset_tokens')
+        ->where('email', 'forgotuser@example.com')
+        ->first();
+    expect($tokenRecord)->not->toBeNull();
+    $token = $tokenRecord->token;
+
+    Mail::assertSent(ResetPasswordMail::class, function ($mail) {
+        return $mail->hasTo('forgotuser@example.com');
+    });
+
+    // 4. Reset password page opens with valid token
+    $resetPage = $this->get("/reset-password/{$token}?email=forgotuser@example.com");
+    $resetPage->assertOk()
+        ->assertSee('Set New Password')
+        ->assertSee('forgotuser@example.com');
+
+    // 5. Submit new password updates user password & deletes token
+    $resetSubmit = $this->post('/reset-password', [
+        'token' => $token,
+        'email' => 'forgotuser@example.com',
+        'password' => 'newpassword123',
+        'password_confirmation' => 'newpassword123',
+    ]);
+    $resetSubmit->assertRedirect(route('login'))
+        ->assertSessionHas('success');
+
+    $user->refresh();
+    expect(Hash::check('newpassword123', $user->password))->toBeTrue();
+
+    $tokenAfter = DB::table('password_reset_tokens')
+        ->where('email', 'forgotuser@example.com')
+        ->first();
+    expect($tokenAfter)->toBeNull();
+
+    // 6. API forgot password & reset password
+    $apiForgot = $this->postJson('/api/forgot-password', [
+        'email' => 'forgotuser@example.com',
+    ]);
+    $apiForgot->assertOk()
+        ->assertJson(['status' => true])
+        ->assertJsonStructure(['data' => ['reset_token', 'reset_url']]);
+
+    $apiToken = $apiForgot->json('data.reset_token');
+
+    $apiReset = $this->postJson('/api/reset-password', [
+        'token' => $apiToken,
+        'email' => 'forgotuser@example.com',
+        'password' => 'supersecret99',
+        'password_confirmation' => 'supersecret99',
+    ]);
+    $apiReset->assertOk()
+        ->assertJson(['status' => true]);
+
+    $user->refresh();
+    expect(Hash::check('supersecret99', $user->password))->toBeTrue();
+});
+
+test('user myorders, invoice pdf, and admin orders fetch payment_id or razorpayId according to payment method', function () {
+    $user = User::create([
+        'name' => 'Payment User',
+        'email' => 'paymentuser@example.com',
+        'password' => Hash::make('password123'),
+        'phone' => '9888877777',
+        'role' => 'user',
+    ]);
+
+    $admin = User::create([
+        'name' => 'Admin Invoice Tester',
+        'email' => 'admininvoicetester@example.com',
+        'password' => Hash::make('password123'),
+        'phone' => '9888866666',
+        'role' => 'admin',
+    ]);
+
+    $category = Category::create([
+        'name' => 'Laptops',
+        'slug' => 'laptops-invoice',
+        'is_active' => true,
+    ]);
+
+    $product = Product::create([
+        'category_id' => $category->id,
+        'name' => 'MacBook Pro M3',
+        'slug' => 'macbook-pro-m3',
+        'sku' => 'MBP-M3',
+        'is_active' => true,
+    ]);
+
+    $variant = $product->variants()->create([
+        'sku' => 'MBP-M3-SLV',
+        'actual_price' => 199999,
+        'stock_qty' => 10,
+        'is_active' => true,
+    ]);
+
+    // 1. Razorpay Order
+    $razorpayOrder = Order::create([
+        'user_id' => $user->id,
+        'customer_name' => 'Payment User',
+        'phone' => '9888877777',
+        'address' => '404 Tech Park',
+        'city' => 'Surat',
+        'state' => 'Gujarat',
+        'postal_code' => '395007',
+        'subtotal' => 199999,
+        'delivery_fee' => 0,
+        'total_amount' => 199999,
+        'payment_method' => 'razorpay',
+        'payment_id' => 'pay_rzp_test_1001',
+        'razorpay_payment_id' => 'pay_rzp_test_1001',
+        'razorpay_order_id' => 'order_rzp_test_5001',
+        'payment_status' => 'paid',
+        'order_status' => 'processing',
+    ]);
+
+    $razorpayOrder->items()->create([
+        'product_id' => $product->id,
+        'variant_id' => $variant->id,
+        'product_name' => 'MacBook Pro M3',
+        'quantity' => 1,
+        'price' => 199999,
+        'subtotal' => 199999,
+    ]);
+
+    // 2. Stripe Order
+    $stripeOrder = Order::create([
+        'user_id' => $user->id,
+        'customer_name' => 'Payment User',
+        'phone' => '9888877777',
+        'address' => '404 Tech Park',
+        'city' => 'Surat',
+        'state' => 'Gujarat',
+        'postal_code' => '395007',
+        'subtotal' => 199999,
+        'delivery_fee' => 0,
+        'total_amount' => 199999,
+        'payment_method' => 'stripe',
+        'payment_id' => 'pi_stripe_test_2002',
+        'stripe_payment_id' => 'pi_stripe_test_2002',
+        'stripe_session_id' => 'cs_test_session_3003',
+        'payment_status' => 'paid',
+        'order_status' => 'shipped',
+    ]);
+
+    $stripeOrder->items()->create([
+        'product_id' => $product->id,
+        'variant_id' => $variant->id,
+        'product_name' => 'MacBook Pro M3',
+        'quantity' => 1,
+        'price' => 199999,
+        'subtotal' => 199999,
+    ]);
+
+    // 3. User My Orders View
+    $myOrdersResponse = $this->withSession(['user_id' => $user->id])->get('/myorders');
+    $myOrdersResponse->assertOk()
+        ->assertSee('Razorpay ID: pay_rzp_test_1001', false)
+        ->assertSee('order_rzp_test_5001')
+        ->assertSee('Payment ID: pi_stripe_test_2002', false);
+
+    // 4. Invoice HTML/PDF View Rendering Checks
+    $pdfRazorpayHtml = view('pdf.invoice', ['order' => $razorpayOrder->load('items', 'user')])->render();
+    expect($pdfRazorpayHtml)
+        ->toContain('RAZORPAY (ONLINE)')
+        ->toContain('Razorpay Payment ID')
+        ->toContain('pay_rzp_test_1001')
+        ->toContain('Razorpay Order ID')
+        ->toContain('order_rzp_test_5001');
+
+    $pdfStripeHtml = view('pdf.invoice', ['order' => $stripeOrder->load('items', 'user')])->render();
+    expect($pdfStripeHtml)
+        ->toContain('STRIPE (ONLINE)')
+        ->toContain('Stripe Payment ID')
+        ->toContain('pi_stripe_test_2002');
+
+    // 5. Download Invoice Routes
+    $userPdfDownload = $this->withSession(['user_id' => $user->id])
+        ->get("/myorders/{$razorpayOrder->id}/invoice");
+    $userPdfDownload->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+
+    $adminPdfDownload = $this->withSession(['user_id' => $admin->id])
+        ->get("/adminorderdetail/{$razorpayOrder->id}/invoice");
+    $adminPdfDownload->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+
+    // 6. Admin Orders List View
+    $adminOrdersResponse = $this->withSession(['user_id' => $admin->id])->get('/adminorders');
+    $adminOrdersResponse->assertOk()
+        ->assertSee('pay_rzp_test_1001')
+        ->assertSee('order_rzp_test_5001')
+        ->assertSee('pi_stripe_test_2002');
+
+    // 7. Admin Order Detail View
+    $adminDetailResponse = $this->withSession(['user_id' => $admin->id])
+        ->get("/adminorderdetail/{$razorpayOrder->id}");
+    $adminDetailResponse->assertOk()
+        ->assertSee('Razorpay (UPI / Cards / Net Banking)')
+        ->assertSee('Razorpay Payment ID')
+        ->assertSee('pay_rzp_test_1001')
+        ->assertSee('Razorpay Order ID')
+        ->assertSee('order_rzp_test_5001');
+
+    // 8. Order API Invoice Data
+    $token = $user->createToken('test-token')->plainTextToken;
+    $apiInvoice = $this->withHeader('Authorization', 'Bearer '.$token)
+        ->getJson("/api/orders/{$razorpayOrder->id}/invoice-data");
+    $apiInvoice->assertOk()
+        ->assertJsonPath('data.pricing.payment_method', 'RAZORPAY')
+        ->assertJsonPath('data.pricing.razorpay_payment_id', 'pay_rzp_test_1001')
+        ->assertJsonPath('data.pricing.razorpay_order_id', 'order_rzp_test_5001');
+});
+
+test('storefront catalog paginates products to 6 per page and links to page 2', function () {
+    $user = User::create([
+        'name' => 'Catalog Tester',
+        'email' => 'catalogtester@example.com',
+        'password' => Hash::make('password123'),
+        'phone' => '9555544444',
+        'role' => 'user',
+    ]);
+
+    $category = Category::create([
+        'name' => 'Smartphones',
+        'slug' => 'smartphones',
+        'is_active' => true,
+    ]);
+
+    // Create exactly 11 active products
+    for ($i = 1; $i <= 11; $i++) {
+        $pad = str_pad((string) $i, 2, '0', STR_PAD_LEFT);
+        $prod = Product::create([
+            'category_id' => $category->id,
+            'name' => "Phone Model {$pad}",
+            'slug' => "phone-model-{$pad}",
+            'sku' => "SKU-PH-{$pad}",
+            'is_active' => true,
+        ]);
+
+        $prod->variants()->create([
+            'sku' => "SKU-PH-{$pad}-V1",
+            'actual_price' => 10000 + ($i * 500),
+            'stock_qty' => 5,
+            'is_active' => true,
+        ]);
+    }
+
+    // Page 1: Should display 6 products out of 11
+    $page1Response = $this->withSession(['user_id' => $user->id])->get('/index');
+    $page1Response->assertOk()
+        ->assertSee('Explore Store Catalog')
+        ->assertSee('Showing 1-6 of 11 products')
+        ->assertSee('phone-model-01')
+        ->assertSee('phone-model-06')
+        ->assertDontSee('phone-model-07')
+        ->assertSee('page=2')
+        ->assertSee('Next');
+
+    // Page 2: Should display the remaining 5 products (7 to 11)
+    $page2Response = $this->withSession(['user_id' => $user->id])->get('/index?page=2');
+    $page2Response->assertOk()
+        ->assertSee('Showing 7-11 of 11 products')
+        ->assertSee('phone-model-07')
+        ->assertSee('phone-model-11')
+        ->assertDontSee('phone-model-06')
+        ->assertSee('page=1')
+        ->assertSee('Previous');
+});
+
+test('admin orders and admin products paginate to 6 items per page with page 2 navigation', function () {
+    $admin = User::create([
+        'name' => 'Admin Paginator',
+        'email' => 'adminpaginator@example.com',
+        'password' => Hash::make('password123'),
+        'phone' => '9444433333',
+        'role' => 'admin',
+    ]);
+
+    $category = Category::create([
+        'name' => 'Tablets',
+        'slug' => 'tablets',
+        'is_active' => true,
+    ]);
+
+    // Create 11 products
+    for ($i = 1; $i <= 11; $i++) {
+        $pad = str_pad((string) $i, 2, '0', STR_PAD_LEFT);
+        $prod = Product::create([
+            'category_id' => $category->id,
+            'name' => "Tablet Model {$pad}",
+            'slug' => "tablet-model-{$pad}",
+            'sku' => "SKU-TAB-{$pad}",
+            'is_active' => true,
+        ]);
+
+        $prod->variants()->create([
+            'sku' => "SKU-TAB-{$pad}-V1",
+            'actual_price' => 20000 + ($i * 1000),
+            'stock_qty' => 10,
+            'is_active' => true,
+        ]);
+    }
+
+    // 1. Admin Products Page 1
+    $adminProdPage1 = $this->withSession(['user_id' => $admin->id])->get('/adminproducts');
+    $adminProdPage1->assertOk()
+        ->assertSee('Showing 1-6')
+        ->assertSee('Tablet Model 11')
+        ->assertSee('Tablet Model 06')
+        ->assertDontSee('Tablet Model 05')
+        ->assertSee('page=2')
+        ->assertSee('Next');
+
+    // 2. Admin Products Page 2
+    $adminProdPage2 = $this->withSession(['user_id' => $admin->id])->get('/adminproducts?page=2');
+    $adminProdPage2->assertOk()
+        ->assertSee('Showing 7-11')
+        ->assertSee('Tablet Model 05')
+        ->assertSee('Tablet Model 01')
+        ->assertDontSee('Tablet Model 11')
+        ->assertSee('page=1')
+        ->assertSee('Previous');
+
+    // Create 11 orders
+    for ($i = 1; $i <= 11; $i++) {
+        $pad = str_pad((string) $i, 2, '0', STR_PAD_LEFT);
+        Order::create([
+            'user_id' => $admin->id,
+            'customer_name' => "Customer {$pad}",
+            'phone' => "90000000{$pad}",
+            'address' => "Address {$pad}",
+            'city' => 'Rajkot',
+            'state' => 'Gujarat',
+            'postal_code' => '360001',
+            'subtotal' => 1000 * $i,
+            'delivery_fee' => 0,
+            'total_amount' => 1000 * $i,
+            'payment_method' => 'cod',
+            'payment_status' => 'paid',
+            'order_status' => 'delivered',
+        ]);
+    }
+
+    // 3. Admin Orders Page 1
+    $adminOrdersPage1 = $this->withSession(['user_id' => $admin->id])->get('/adminorders');
+    $adminOrdersPage1->assertOk()
+        ->assertSee('1-6')
+        ->assertSee('of 11 orders recorded')
+        ->assertSee('Customer 11')
+        ->assertSee('Customer 06')
+        ->assertDontSee('Customer 05')
+        ->assertSee('page=2')
+        ->assertSee('Next');
+
+    // 4. Admin Orders Page 2
+    $adminOrdersPage2 = $this->withSession(['user_id' => $admin->id])->get('/adminorders?page=2');
+    $adminOrdersPage2->assertOk()
+        ->assertSee('7-11')
+        ->assertSee('of 11 orders recorded')
+        ->assertSee('Customer 05')
+        ->assertSee('Customer 01')
+        ->assertDontSee('Customer 11')
+        ->assertSee('page=1')
+        ->assertSee('Previous');
+});
+
+test('admin pages require authentication and administrator role', function () {
+    $regularUser = User::create([
+        'name' => 'Regular User',
+        'email' => 'regular@example.com',
+        'password' => Hash::make('password123'),
+        'phone' => '9111122222',
+        'role' => 'user',
+    ]);
+
+    $adminUser = User::create([
+        'name' => 'Super Admin',
+        'email' => 'superadmin@example.com',
+        'password' => Hash::make('password123'),
+        'phone' => '9333344444',
+        'role' => 'admin',
+    ]);
+
+    // 1. Unauthenticated guest cannot access admin pages
+    $guestOrders = $this->get('/adminorders');
+    $guestOrders->assertRedirect('/login')
+        ->assertSessionHas('error');
+
+    $guestProducts = $this->get('/adminproducts');
+    $guestProducts->assertRedirect('/login');
+
+    $guestAdmin = $this->get('/admin');
+    $guestAdmin->assertRedirect('/login');
+
+    // 2. Regular user (role = 'user') cannot access admin pages
+    $userAccess = $this->withSession([
+        'user_id' => $regularUser->id,
+        'user_role' => $regularUser->role,
+    ])->get('/adminorders');
+    $userAccess->assertRedirect('/login')
+        ->assertSessionHas('error');
+
+    // 3. Admin user (role = 'admin') can access admin pages
+    $adminAccess = $this->withSession([
+        'user_id' => $adminUser->id,
+        'user_role' => $adminUser->role,
+    ])->get('/adminorders');
+    $adminAccess->assertOk();
+
+    // 4. Admin login redirects to intended admin page
+    $loginResp = $this->post('/login', [
+        'email' => 'superadmin@example.com',
+        'password' => 'password123',
+    ]);
+    $loginResp->assertRedirect('/admin')
+        ->assertSessionHas('user_id', $adminUser->id)
+        ->assertSessionHas('user_role', 'admin');
+
+    // 5. Direct login without intended URL defaults to /adminorders
+    $this->flushSession();
+    $directLogin = $this->post('/login', [
+        'email' => 'superadmin@example.com',
+        'password' => 'password123',
+    ]);
+    $directLogin->assertRedirect('/adminorders');
 });

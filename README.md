@@ -606,6 +606,84 @@ vendor/bin/pint --dirty --format agent
 
 ---
 
+## ⚡ Background Job Processing & Queue Workers
+
+Shopkart uses **Laravel Queues** with the `database` driver for background job execution (e.g. sending welcome emails via `SendWelcomeEmailJob` when new customers register).
+
+### Starting the Queue Worker
+
+In local development or test environments, start the queue worker with:
+
+```bash
+php artisan queue:work --queue=emails,default --sleep=3 --tries=3
+```
+
+- `--queue=emails,default`: Prioritizes processing jobs on the high-priority `emails` queue before falling back to `default`.
+- `--sleep=3`: Waits 3 seconds between polls when no jobs are present in the queue.
+- `--tries=3`: Retries failed jobs up to 3 times before logging and moving to `failed_jobs`.
+
+### Production Setup (Supervisor)
+
+In production, use Supervisor to keep the worker running automatically. A pre-configured sample configuration is provided in [`deploy/supervisor/laravel-worker.conf`](deploy/supervisor/laravel-worker.conf):
+
+```ini
+[program:laravel-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=php /var/www/html/artisan queue:work --queue=emails,default --sleep=3 --tries=3 --max-time=3600
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=2
+redirect_stderr=true
+stdout_logfile=/var/www/html/storage/logs/worker.log
+stopwaitsecs=3600
+```
+
+To load and start the worker via Supervisor:
+```bash
+sudo cp deploy/supervisor/laravel-worker.conf /etc/supervisor/conf.d/
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start laravel-worker:*
+```
+
+### Managing Failed Jobs
+
+When a queued job exhausts all 3 attempts, it is automatically recorded in the `failed_jobs` database table.
+
+- **List all failed jobs:**
+  ```bash
+  php artisan queue:failed
+  ```
+
+- **Retry all failed jobs:**
+  ```bash
+  php artisan queue:retry all
+  ```
+
+- **Retry a specific job by UUID or ID:**
+  ```bash
+  php artisan queue:retry <id-or-uuid>
+  ```
+
+- **Delete all failed jobs:**
+  ```bash
+  php artisan queue:flush
+  ```
+
+### Deployment Rule: Restart Workers
+
+> [!IMPORTANT]
+> Because queue workers are long-lived PHP processes running in daemon mode, they keep in-memory instances of application code. You **must run `php artisan queue:restart` after every deployment** so all active workers gracefully stop and restart with fresh code:
+>
+> ```bash
+> php artisan queue:restart
+> ```
+
+---
+
 ## 📄 License
 
 Released under the [MIT License](https://opensource.org/licenses/MIT).
