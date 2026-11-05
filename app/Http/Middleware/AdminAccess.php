@@ -16,9 +16,22 @@ class AdminAccess
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $userId = $request->session()->get('user_id');
+        $adminId = $request->session()->get('admin_id');
 
-        if (! $userId) {
+        // Fallback: check if active user session belongs to an admin
+        if (! $adminId) {
+            $userId = $request->session()->get('user_id');
+            if ($userId) {
+                $user = User::find($userId);
+                if ($user && $user->role === 'admin') {
+                    $adminId = $user->id;
+                    $request->session()->put('admin_id', $adminId);
+                    $request->session()->put('admin_name', $user->name);
+                }
+            }
+        }
+
+        if (! $adminId) {
             if ($request->isMethod('GET')) {
                 $request->session()->put('url.intended', $request->fullUrl());
             }
@@ -26,17 +39,11 @@ class AdminAccess
             return redirect('/login')->with('error', 'Please log in as an administrator to access the admin panel.');
         }
 
-        $userRole = $request->session()->get('user_role');
+        $admin = User::find($adminId);
 
-        if (! $userRole) {
-            $user = User::find($userId);
-            $userRole = $user?->role;
-            if ($userRole) {
-                $request->session()->put('user_role', $userRole);
-            }
-        }
+        if (! $admin || $admin->role !== 'admin') {
+            $request->session()->forget(['admin_id', 'admin_name']);
 
-        if ($userRole !== 'admin') {
             return redirect('/login')->with('error', 'Access denied. You do not have administrator permissions to access this page.');
         }
 

@@ -2,12 +2,14 @@
 
 # 🛒 Shopkart
 
-**A full-stack e-commerce platform built with Laravel — storefront, variant-aware catalog, cart, COD + Stripe checkout, invoices and a complete admin panel.**
+**A full-stack e-commerce platform built with Laravel — storefront, variant-aware catalog, cart, COD, Razorpay + Stripe checkout, asynchronous queues, invoices and a complete admin panel.**
 
 ![PHP](https://img.shields.io/badge/PHP-8.3-777BB4?logo=php&logoColor=white)
-![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
+![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)
+![Razorpay](https://img.shields.io/badge/Razorpay-Payment%20Gateway-0C2340?logo=razorpay&logoColor=white)
 ![Stripe](https://img.shields.io/badge/Stripe-Checkout-635BFF?logo=stripe&logoColor=white)
+![Queue](https://img.shields.io/badge/Queue-Database%20Driver-F59E0B)
 ![Tests](https://img.shields.io/badge/Tests-Pest-8E44AD)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
@@ -17,47 +19,46 @@
 
 ## 📖 Overview
 
-Shopkart is a Laravel-based e-commerce application that covers the full shopping journey — from browsing a variant-driven catalog to paying with **Cash on Delivery** or **Stripe Checkout**, and then managing everything through an admin dashboard.
+Shopkart is a Laravel-based e-commerce application that covers the full shopping journey — from browsing a variant-driven catalog to paying with **Cash on Delivery**, **Razorpay**, or **Stripe Checkout**, and managing everything through a dedicated admin dashboard.
 
-It is intentionally built **without a JavaScript framework**: every page is server-rendered with Blade templates, and all business logic lives in the controllers. Styling uses hand-written CSS in `public/assets/css/` (no build step required for styles).
+It is intentionally built **without a JavaScript framework**: every page is server-rendered with Blade templates, and business logic lives in controllers. Styling uses hand-written CSS in `public/assets/css/` with Vite and Tailwind support.
 
 **Highlights**
 
-- 🧩 **Variant-aware catalog** — products are composed from reusable variant groups (e.g. *Color*, *Storage*) with per-variant pricing and stock.
-- 💳 **Dual payment** — Cash on Delivery and Stripe Checkout, with webhook-driven failure/refund tracking.
+- 🧩 **Variant-aware catalog** — products are composed from reusable variant groups (e.g. *Color*, *Storage*, *RAM*) with per-variant pricing and stock.
+- 💳 **Multi-gateway checkout** — Cash on Delivery (COD), Razorpay, and Stripe Checkout with webhook verification and live payment tracking.
+- ⚡ **Background Queue Worker** — Asynchronous email delivery via Laravel Queues (Database driver) and production-ready Supervisor configuration.
 - 📦 **Bulk CSV import** — import many products (and their variants) into a category in one upload.
-- 🧾 **PDF invoices** — generated on demand for customers and admins.
-- 🛠️ **Full admin panel** — orders, products, categories, variants, users and profile, plus a live pending-orders notification bar.
+- 🧾 **PDF invoices** — generated on demand with dynamic payment IDs (Razorpay / Stripe / COD) for customers and admins.
+- 🛠️ **Full admin panel** — orders, products, categories, variants, users, profile, and pending-orders notification bar.
 
 ---
 
 ## 🖼️ Screenshots
 
-> Drop your own PNGs into `docs/screenshots/` using the file names below and they will render here automatically.
-
 | Storefront | Product Detail |
 | :---: | :---: |
-| ![Storefront](docs/screenshots/storefront.png) | ![Product detail](docs/screenshots/product-detail.png) |
+| <a href="docs/screenshots/storefront.png"><img src="docs/screenshots/storefront.png" alt="Storefront" width="100%"/></a> | <a href="docs/screenshots/product-detail.png"><img src="docs/screenshots/product-detail.png" alt="Product detail" width="100%"/></a> |
 
 | Cart & Checkout | My Orders & Invoice |
 | :---: | :---: |
-| ![Checkout](docs/screenshots/cart-checkout.png) | ![Invoice](docs/screenshots/invoice.png) |
+| <a href="docs/screenshots/cart-checkout.png"><img src="docs/screenshots/cart-checkout.png" alt="Checkout" width="100%"/></a> | <a href="docs/screenshots/invoice.png"><img src="docs/screenshots/invoice.png" alt="Invoice" width="100%"/></a> |
 
 | Admin — Orders | Admin — Order Detail |
 | :---: | :---: |
-| ![Admin orders](docs/screenshots/admin-orders.png) | ![Admin order detail](docs/screenshots/admin-order-detail.png) |
+| <a href="docs/screenshots/admin-orders.png"><img src="docs/screenshots/admin-orders.png" alt="Admin orders" width="100%"/></a> | <a href="docs/screenshots/admin-order-detail.png"><img src="docs/screenshots/admin-order-detail.png" alt="Admin order detail" width="100%"/></a> |
 
 | Admin — Products | Admin — Add Product |
 | :---: | :---: |
-| ![Admin products](docs/screenshots/admin-products.png) | ![Admin add product](docs/screenshots/admin-add-product.png) |
+| <a href="docs/screenshots/admin-products.png"><img src="docs/screenshots/admin-products.png" alt="Admin products" width="100%"/></a> | <a href="docs/screenshots/admin-add-product.png"><img src="docs/screenshots/admin-add-product.png" alt="Admin add product" width="100%"/></a> |
 
 | Admin — Categories | Admin — Variants |
 | :---: | :---: |
-| ![Admin categories](docs/screenshots/admin-categories.png) | ![Admin variants](docs/screenshots/admin-variants.png) |
+| <a href="docs/screenshots/admin-categories.png"><img src="docs/screenshots/admin-categories.png" alt="Admin categories" width="100%"/></a> | <a href="docs/screenshots/admin-variants.png"><img src="docs/screenshots/admin-variants.png" alt="Admin variants" width="100%"/></a> |
 
 | Login / Register | Admin — Users |
 | :---: | :---: |
-| ![Auth](docs/screenshots/auth.png) | ![Admin users](docs/screenshots/admin-users.png) |
+| <a href="docs/screenshots/auth.png"><img src="docs/screenshots/auth.png" alt="Auth" width="100%"/></a> | <a href="docs/screenshots/admin-users.png"><img src="docs/screenshots/admin-users.png" alt="Admin users" width="100%"/></a> |
 
 ---
 
@@ -67,26 +68,26 @@ It is intentionally built **without a JavaScript framework**: every page is serv
 
 | Feature | Description |
 | --- | --- |
-| 🔐 Authentication | Custom session-based register / login / logout. Registration assigns the `user` role. |
-| 🏠 Home catalog | Active products grid with category filter, search, stock badges and a featured product. |
+| 🔐 Authentication | Custom session-based register / login / logout with password reset link and queued welcome emails. |
+| 🏠 Home catalog | Active products grid with category filter, search, stock badges, pagination (6 per page) and featured products. |
 | 🔎 Product detail | Image gallery, specifications and a **live variant matrix** — selecting options resolves price + stock. |
 | 🧺 Cart | Add / update quantity / remove, with stock guards and a live savings total. |
-| 💳 Checkout | Multi-step checkout with COD or Stripe, delivery fee logic and order summary. |
-| 🧾 Orders | Order history split into active vs. previous, with downloadable **PDF invoices**. |
-| 👤 Profile | Personal info, address book and password change (verified against the current password). |
+| 💳 Checkout | Multi-step checkout with COD, Razorpay, or Stripe, delivery fee logic and order summary. |
+| 🧾 Orders | Order history with live order tracking stages and downloadable **PDF invoices** featuring payment references. |
+| 👤 Profile | Personal info, address book and password change (verified against current password). |
 
 ### Admin panel
 
 | Feature | Description |
 | --- | --- |
-| 📊 Orders dashboard | Status summary cards + full order list. |
-| 🚚 Order detail | View line items, update delivery status, mark COD cash as collected, email the customer, download invoice. |
+| 📊 Orders dashboard | Status summary cards, paginated orders list, and filter tabs. |
+| 🚚 Order detail | View line items, update delivery status, view Razorpay/Stripe payment ID, email customer, download invoice. |
 | 📦 Products | Paginated list, category filter, create / edit / delete (delete is blocked if referenced by orders). |
-| 🧩 Variants | CRUD for variant groups (e.g. Color) and their values, linked to categories. |
+| 🧩 Variants | CRUD for variant groups (e.g. Color, RAM, Storage) and their values, linked to categories. |
 | 🗂️ Categories | Hierarchical categories (parent/child) with pricing, ordering and unique slugs. |
 | 📥 Bulk import | Upload a CSV, pick a target category, and import many products + variants at once. |
-| 👥 Users | Read-only directory of registered customers with activity derived from last login. |
-| 🔔 Notifications | Global bar showing the 5 most recent pending orders. |
+| 👥 Users | Read-only directory of registered customers with role identification. |
+| 🔔 Notifications | Global bar showing recent pending orders. |
 | 🙍 Profile | Admin profile + password update. |
 
 ---
@@ -96,13 +97,14 @@ It is intentionally built **without a JavaScript framework**: every page is serv
 | Layer | Technology |
 | --- | --- |
 | Language | PHP 8.3 |
-| Framework | Laravel 13 |
+| Framework | Laravel 12 |
 | Database | MySQL (SQLite for tests) |
 | Templating | Blade (server-rendered, no JS framework) |
 | Styling | Hand-written CSS (`public/assets/css/*.css`), Tailwind + Vite available for app assets |
-| Payments | Stripe PHP SDK v22 — Checkout Sessions + Webhooks |
+| Payments | Razorpay API & Stripe PHP SDK (Checkout Sessions + Webhooks) |
+| Queue Driver | Database driver with Supervisor process worker |
 | PDF | `barryvdh/laravel-dompdf` |
-| Authentication | Custom session-based (no Jetstream/Breeze) |
+| Authentication | Custom session-based (isolated `admin_id` and `user_id`) |
 | Testing | Pest 4 |
 | Code style | Laravel Pint |
 

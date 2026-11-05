@@ -9,6 +9,7 @@ use App\Models\users;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -20,12 +21,6 @@ class UserController extends Controller
 {
     public function login()
     {
-        if (session()->has('user_id')) {
-            return session('user_role') === 'admin'
-                ? redirect('/adminorders')
-                : redirect('/index');
-        }
-
         return view('user.login');
     }
 
@@ -76,10 +71,17 @@ class UserController extends Controller
         $user = users::where('email', $request->email)->first();
 
         if ($user && Hash::check($request->password, $user->password)) {
-            session(['user_id' => $user->id, 'user_name' => $user->name, 'user_role' => $user->role]);
+            $intended = session()->pull('url.intended');
 
             if ($user->role === 'admin') {
-                $intended = session()->pull('url.intended', '/adminorders');
+                session([
+                    'admin_id' => $user->id,
+                    'admin_name' => $user->name,
+                    'user_id' => $user->id,
+                    'user_name' => $user->name,
+                    'user_role' => 'admin',
+                ]);
+
                 if (! is_string($intended) || ! str_contains($intended, 'admin')) {
                     $intended = '/adminorders';
                 }
@@ -87,7 +89,15 @@ class UserController extends Controller
                 return redirect($intended)->with('success', 'Welcome Admin!');
             }
 
-            return redirect()->intended('/index')->with('success', 'Login successful!');
+            session([
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'user_role' => 'user',
+            ]);
+
+            $redirectUrl = ($intended && ! str_contains($intended, 'admin')) ? $intended : '/index';
+
+            return redirect($redirectUrl)->with('success', 'Login successful!');
         }
 
         return back()->with('error', 'Invalid email or password.');
@@ -196,9 +206,16 @@ class UserController extends Controller
         return redirect('/profile#security')->with('success', 'Password updated successfully.');
     }
 
-    public function logout()
+    public function logout(Request $request): RedirectResponse
     {
-        session()->flush();
+        Auth::logout();
+        session()->forget(['user_id', 'user_name', 'user_role']);
+
+        if (! session('admin_id')) {
+            session()->flush();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return redirect('/login')->with('success', 'Logged out successfully.');
     }

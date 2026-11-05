@@ -7,16 +7,28 @@ use App\Models\Order;
 use App\Models\users;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 
 class AdminController extends Controller
 {
-    public function logout()
+    public function logout(Request $request)
     {
-        session()->flush();
+        Auth::logout();
+        session()->forget(['admin_id', 'admin_name']);
 
-        return redirect('/login')->with('success', 'Logged out successfully.');
+        if (session('user_role') === 'admin') {
+            session()->forget(['user_id', 'user_name', 'user_role']);
+        }
+
+        if (! session('user_id')) {
+            session()->flush();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
+        return redirect('/login')->with('success', 'Admin logged out successfully.');
     }
 
     public function index(Request $request)
@@ -94,7 +106,7 @@ class AdminController extends Controller
 
     public function profile()
     {
-        $admin = users::find(session('user_id'));
+        $admin = users::find(session('admin_id') ?? session('user_id'));
 
         if (! $admin || $admin->role !== 'admin') {
             return redirect('/login')->with('error', 'Unauthorized access.');
@@ -105,7 +117,7 @@ class AdminController extends Controller
 
     public function profileUpdate(Request $request)
     {
-        $admin = users::find(session('user_id'));
+        $admin = users::find(session('admin_id') ?? session('user_id'));
 
         if (! $admin || $admin->role !== 'admin') {
             return redirect('/login')->with('error', 'Unauthorized access.');
@@ -128,7 +140,7 @@ class AdminController extends Controller
 
     public function passwordUpdate(Request $request)
     {
-        $admin = users::find(session('user_id'));
+        $admin = users::find(session('admin_id') ?? session('user_id'));
 
         if (! $admin || $admin->role !== 'admin') {
             return redirect('/login')->with('error', 'Unauthorized access.');

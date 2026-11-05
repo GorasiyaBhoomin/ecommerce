@@ -977,11 +977,11 @@ test('admin pages require authentication and administrator role', function () {
     $adminAccess->assertOk();
 
     // 4. Admin login redirects to intended admin page
-    $loginResp = $this->post('/login', [
+    $loginResp = $this->withSession(['url.intended' => '/adminproducts'])->post('/login', [
         'email' => 'superadmin@example.com',
         'password' => 'password123',
     ]);
-    $loginResp->assertRedirect('/admin')
+    $loginResp->assertRedirect('/adminproducts')
         ->assertSessionHas('user_id', $adminUser->id)
         ->assertSessionHas('user_role', 'admin');
 
@@ -992,4 +992,110 @@ test('admin pages require authentication and administrator role', function () {
         'password' => 'password123',
     ]);
     $directLogin->assertRedirect('/adminorders');
+});
+
+test('web logout successfully terminates sessions for both regular users and admins', function () {
+    $regularUser = User::create([
+        'name' => 'Logout Test User',
+        'email' => 'logoutuser@example.com',
+        'password' => Hash::make('password123'),
+        'phone' => '9555511111',
+        'role' => 'user',
+    ]);
+
+    $adminUser = User::create([
+        'name' => 'Logout Test Admin',
+        'email' => 'logoutadmin@example.com',
+        'password' => Hash::make('password123'),
+        'phone' => '9555522222',
+        'role' => 'admin',
+    ]);
+
+    // 1. Regular user can log out via POST /logout
+    $userLogout = $this->withSession([
+        'user_id' => $regularUser->id,
+        'user_name' => $regularUser->name,
+        'user_role' => $regularUser->role,
+    ])->post('/logout');
+
+    $userLogout->assertRedirect('/login')
+        ->assertSessionHas('success', 'Logged out successfully.')
+        ->assertSessionMissing('user_id');
+
+    // 2. Regular user can also log out via GET /logout
+    $userGetLogout = $this->withSession([
+        'user_id' => $regularUser->id,
+        'user_name' => $regularUser->name,
+        'user_role' => $regularUser->role,
+    ])->get('/logout');
+
+    $userGetLogout->assertRedirect('/login')
+        ->assertSessionHas('success', 'Logged out successfully.')
+        ->assertSessionMissing('user_id');
+
+    // 3. Admin user can log out via POST /logout
+    $adminLogout = $this->withSession([
+        'user_id' => $adminUser->id,
+        'user_name' => $adminUser->name,
+        'user_role' => $adminUser->role,
+    ])->post('/logout');
+
+    $adminLogout->assertRedirect('/login')
+        ->assertSessionHas('success', 'Logged out successfully.')
+        ->assertSessionMissing('user_id');
+});
+
+test('logged in admin can open login page and switch to regular user account', function () {
+    $admin = User::create([
+        'name' => 'Active Admin',
+        'email' => 'activeadmin@example.com',
+        'password' => Hash::make('admin123'),
+        'phone' => '9666611111',
+        'role' => 'admin',
+    ]);
+
+    $user = User::create([
+        'name' => 'Active Customer',
+        'email' => 'activecustomer@example.com',
+        'password' => Hash::make('user123'),
+        'phone' => '9666622222',
+        'role' => 'user',
+    ]);
+
+    // 1. Admin logs in
+    $adminLogin = $this->post('/login', [
+        'email' => 'activeadmin@example.com',
+        'password' => 'admin123',
+    ]);
+    $adminLogin->assertRedirect('/adminorders')
+        ->assertSessionHas('admin_id', $admin->id)
+        ->assertSessionHas('user_id', $admin->id);
+
+    // 2. Admin opens /login page to log in as user (does not force redirect)
+    $loginPage = $this->get('/login');
+    $loginPage->assertOk()
+        ->assertSee('Active Admin')
+        ->assertSee('Sign In to Shopkart');
+
+    // 3. User logs in
+    $switchResponse = $this->post('/login', [
+        'email' => 'activecustomer@example.com',
+        'password' => 'user123',
+    ]);
+
+    // Must successfully switch session to user and redirect to /index
+    $switchResponse->assertRedirect('/index')
+        ->assertSessionHas('user_id', $user->id)
+        ->assertSessionHas('user_role', 'user')
+        ->assertSessionHas('admin_id', $admin->id);
+
+    // 3. Admin panel remains accessible simultaneously without Access Denied
+    $adminPanel = $this->get('/adminorders');
+    $adminPanel->assertOk()
+        ->assertDontSee('Access denied');
+
+    // 4. Storefront profile reflects the active customer
+    $userProfile = $this->get('/profile');
+    $userProfile->assertOk()
+        ->assertSee('Active Customer');
 });

@@ -79,6 +79,30 @@
         </div>
       @endif
 
+      @if (session('user_id') || session('admin_id'))
+        <div style="background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E40AF; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; line-height: 1.6;">
+          @if (session('admin_id') && session('user_id') && session('user_role') !== 'admin')
+            <div>Active Sessions: <strong>Administrator</strong> ({{ session('admin_name', 'Admin') }}) &bull; <strong>Customer</strong> ({{ session('user_name', 'User') }})</div>
+            <div style="margin-top: 6px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+              <a href="/adminorders" style="font-weight: 700; color: #1D4ED8; text-decoration: underline;">Admin Panel &rarr;</a>
+              <span style="color: #94A3B8;">&bull;</span>
+              <a href="/index" style="font-weight: 700; color: #1D4ED8; text-decoration: underline;">Store Catalog &rarr;</a>
+              <span style="color: #94A3B8;">&bull;</span>
+              <a href="/logout" style="color: #DC2626; font-weight: 600; text-decoration: underline;">Log out</a>
+            </div>
+          @else
+            <div>Currently signed in as <strong>{{ session('user_name', session('admin_name', 'Account')) }}</strong> ({{ (session('user_role') === 'admin' || session('admin_id')) ? 'Administrator' : 'Customer' }}).</div>
+            <div style="margin-top: 6px; display: flex; gap: 12px; align-items: center;">
+              <a href="{{ (session('user_role') === 'admin' || session('admin_id')) ? '/adminorders' : '/index' }}" style="font-weight: 700; color: #1D4ED8; text-decoration: underline;">
+                Go to {{ (session('user_role') === 'admin' || session('admin_id')) ? 'Admin Panel' : 'Store Catalog' }} &rarr;
+              </a>
+              <span style="color: #94A3B8;">&bull;</span>
+              <a href="/logout" style="color: #DC2626; font-weight: 600; text-decoration: underline;">Log out</a>
+            </div>
+          @endif
+        </div>
+      @endif
+
       <form class="auth-form" action="{{url('/login')}}" method="post" >
         @csrf
         <div class="form-group">

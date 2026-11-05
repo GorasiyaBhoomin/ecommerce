@@ -142,7 +142,7 @@
       <div class="sidebar-footer">
         @if ($showUserPill)
           @php
-            $sidebarAdmin = $admin ?? (session('user_id') ? \App\Models\users::find(session('user_id')) : null);
+            $sidebarAdmin = $admin ?? (session('admin_id') ? \App\Models\users::find(session('admin_id')) : (session('user_id') ? \App\Models\users::find(session('user_id')) : null));
           @endphp
           @if ($sidebarAdmin)
             <div class="user-pill">

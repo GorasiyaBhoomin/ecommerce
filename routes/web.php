@@ -13,15 +13,7 @@ use App\Http\Controllers\UserController;
 use App\Models\Language;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    if (session()->has('user_id')) {
-        return session('user_role') === 'admin'
-            ? redirect('/adminorders')
-            : redirect('/index');
-    }
-
-    return view('user.login');
-});
+Route::get('/', [UserController::class, 'login']);
 
 Route::redirect('/adminlogin', '/login');
 Route::redirect('/admin/login', '/login');
@@ -74,8 +66,10 @@ Route::middleware('user.auth')->group(function () {
     // Razorpay payment verification
     Route::post('/razorpay/verify', [ShopController::class, 'verifyRazorpayPayment'])
         ->name('payment.razorpay.verify');
-    Route::post('/logout', [UserController::class, 'logout']);
 });
+
+// Logout (shared for all authenticated users and admins)
+Route::match(['GET', 'POST'], '/logout', [UserController::class, 'logout'])->name('logout');
 
 Route::middleware('admin.auth')->group(function () {
     // admin
@@ -118,7 +112,6 @@ Route::middleware('admin.auth')->group(function () {
     Route::patch('/adminorderdetail/{id}/status', [AdminController::class, 'updateStatus'])->name('admin.orders.status');
 
     Route::post('/adminorderdetail/{id}/send-email', [AdminController::class, 'sendEmail'])->name('admin.orders.sendEmail');
-    Route::post('/logout', [AdminController::class, 'logout']);
 
     // Public language switcher
     Route::match(['GET', 'POST'], '/switch-language/{code?}', [AdminLanguageController::class, 'switchLanguage'])->name('languages.switch');
