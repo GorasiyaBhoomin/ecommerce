@@ -592,18 +592,18 @@
               <div class="form-grid-2">
                 <div class="form-group" style="grid-column: 1 / -1;">
                   <label class="form-label" for="secCurrentPass">Current Password</label>
-                  <input type="password" id="secCurrentPass" name="current_password" class="form-input" placeholder="Enter existing password" required>
+                  <input type="password" id="secCurrentPass" name="current_password" class="form-input" placeholder="Enter existing password" >
                 </div>
                 
                 <div class="form-group">
                   <label class="form-label" for="secNewPass">New Password</label>
-                  <input type="password" id="secNewPass" name="password" class="form-input" placeholder="Minimum 8 characters" required oninput="checkPassStrength(this.value)">
+                  <input type="password" id="secNewPass" name="password" class="form-input" placeholder="Minimum 8 characters"  oninput="checkPassStrength(this.value)">
                   <div id="passStrengthIndicator" style="font-size: 11px; margin-top: 4px; color: var(--muted);">Password strength: <span id="passStrengthText" style="font-weight: 700;">Normal</span></div>
                 </div>
 
                 <div class="form-group">
                   <label class="form-label" for="secConfirmPass">Confirm New Password</label>
-                  <input type="password" id="secConfirmPass" name="password_confirmation" class="form-input" placeholder="Repeat new password" required>
+                  <input type="password" id="secConfirmPass" name="password_confirmation" class="form-input" placeholder="Repeat new password" >
                 </div>
               </div>
 
@@ -694,7 +694,7 @@
   <!-- Site Footer -->
   <footer class="site-footer">
     <div style="max-width: 1240px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-      <div>&copy; 2026 Shopkart Gujarat Store. All rights reserved.</div>
+      <div>&copy; {{ date('Y') }} {{ setting('store_name', 'Shopkart') }}. All rights reserved.</div>
       <div style="display: flex; gap: 16px;">
         <a href="/index" style="color: var(--muted); text-decoration: none;">Catalog</a>
         <a href="/myorders" style="color: var(--muted); text-decoration: none;">My Orders</a>

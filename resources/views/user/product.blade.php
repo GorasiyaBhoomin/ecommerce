@@ -4,7 +4,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ $product->name }} | Shopkart</title>
+  <title>{{ $product->name }} | {{ setting('store_name', 'Shopkart') }}</title>
+  @if (setting('store_favicon'))
+    <link rel="icon" href="{{ asset(setting('store_favicon')) }}">
+  @endif
   <!-- Google Fonts: Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -253,7 +256,7 @@
               </tr>
               <tr>
                 <td>Shipping</td>
-                <td>Free Delivery on orders above &#8377;499</td>
+                <td>Free Delivery on orders above {{ setting('currency_symbol', '₹') }}{{ setting('free_delivery_threshold', 499) }}</td>
               </tr>
             </tbody>
           </table>

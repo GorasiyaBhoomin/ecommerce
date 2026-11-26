@@ -243,7 +243,9 @@ class OrderController extends Controller
                     }
                 }
 
-                $deliveryFee = $subtotal > 499 ? 0.0 : 49.0;
+                $freeThreshold = (float) setting('free_delivery_threshold', 499);
+                $standardFee = (float) setting('delivery_fee', 49);
+                $deliveryFee = $subtotal >= $freeThreshold ? 0.0 : $standardFee;
                 $totalAmount = $subtotal + $deliveryFee;
 
                 $order = Order::create([
@@ -509,7 +511,9 @@ class OrderController extends Controller
             }
         }
 
-        $deliveryFee = $subtotal > 499 ? 0.0 : 49.0;
+        $freeThreshold = (float) setting('free_delivery_threshold', 499);
+        $standardFee = (float) setting('delivery_fee', 49);
+        $deliveryFee = $subtotal >= $freeThreshold ? 0.0 : $standardFee;
         if ($deliveryFee > 0) {
             $items[] = [
                 'price_data' => [

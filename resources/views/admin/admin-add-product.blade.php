@@ -18,7 +18,7 @@
 <body>
 
   <div class="admin-container">
-        @include('admin.partials.admin-sidebar', ['active' => 'add-product'])
+    @include('admin.partials.admin-sidebar', ['active' => 'add-product'])
 
     <!-- Main Area -->
     <main class="admin-main">
@@ -72,7 +72,7 @@
         </div>
       @endif
 
-      <form class="content-inner" id="addProductForm" method="POST" action="{{ route('admin.products.create') }}"
+      <form class="content-inner ajax-form" id="addProductForm" method="POST" action="{{ route('admin.products.create') }}"
         enctype="multipart/form-data" onsubmit="return validateProductForm(event)">
         @csrf
 
@@ -94,16 +94,15 @@
               <div class="form-row-2">
                 <div class="form-group">
                   <label for="prodName">Product Name *</label>
-                  <input type="text" id="prodName" name="name" class="input-text"
-                    placeholder="e.g. Nova X5 Flagship" value="{{ old('name') }}" maxlength="255" required>
+                  <input type="text" id="prodName" name="name" class="input-text" placeholder="e.g. Nova X5 Flagship"
+                    value="{{ old('name') }}" maxlength="255">
                 </div>
                 <div class="form-group">
                   <label for="prodCategory">Category *</label>
-                  <select id="prodCategory" name="category_id" class="select-input" required>
+                  <select id="prodCategory" name="category_id" class="select-input">
                     <option value="">Select a category</option>
                     @foreach ($categories as $category)
-                      <option value="{{ $category->id }}"
-                        {{ (string) old('category_id') === (string) $category->id ? 'selected' : '' }}>
+                      <option value="{{ $category->id }}" {{ (string) old('category_id') === (string) $category->id ? 'selected' : '' }}>
                         {{ $category->name }}
                       </option>
                     @endforeach
@@ -120,8 +119,7 @@
               <div class="form-group">
                 <label>Product Images *</label>
                 <label class="image-upload-box" for="fileInput" id="imageUploadBox">
-                  <input type="file" id="fileInput" name="images[]" style="display: none;" accept="image/*" multiple
-                    required>
+                  <input type="file" id="fileInput" name="images[]" style="display: none;" accept="image/*" multiple>
                   <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="17 8 12 3 7 8" />
@@ -290,8 +288,7 @@
             </div>
 
             <div class="visibility-toggle">
-              <input type="checkbox" id="showOnWebsite" name="is_active" value="1"
-                {{ old('is_active', '1') ? 'checked' : '' }}>
+              <input type="checkbox" id="showOnWebsite" name="is_active" value="1" {{ old('is_active', '1') ? 'checked' : '' }}>
               <label for="showOnWebsite">
                 <strong>Show on website</strong>
                 <div style="font-size: 11px; color: var(--muted);">Visible to customer storefront catalog</div>
@@ -332,6 +329,8 @@
     <span id="toastMessage">Product saved.</span>
   </div>
 
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="{{ asset('assets/js/ajax.js') }}"></script>
   <script>
     (function () {
       'use strict';
@@ -567,7 +566,7 @@
           '<td><input type="text" class="table-input" data-field="sku" name="variants[' + index +
           '][sku]" value="' + escapeHtml(state.sku) + '" maxlength="255"></td>' +
           '<td><input type="number" class="table-input price-actual-input" data-field="actual" name="variants[' +
-          index + '][actual_price]" min="0" step="0.01" value="' + escapeHtml(state.actual) + '" required></td>' +
+          index + '][actual_price]" min="0" step="0.01" value="' + escapeHtml(state.actual) + '" ></td>' +
           '<td><input type="number" class="table-input price-discount-input" data-field="discounted" name="variants[' +
           index + '][discounted_price]" min="0" step="0.01" value="' + escapeHtml(state.discounted) + '"></td>' +
           '<td><span class="discount-badge' + (discount === '—' ? ' is-none' : '') + '">' + discount + '</span></td>' +

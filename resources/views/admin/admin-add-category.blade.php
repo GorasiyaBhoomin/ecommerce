@@ -65,7 +65,7 @@
           </div>
         @endif
 
-        <form id="categoryForm" method="POST" action="/adminaddcategory" onsubmit="return publishCategory(event)">
+        <form id="categoryForm" method="POST" action="/adminaddcategory" class="ajax-form" onsubmit="return publishCategory(event)">
           @csrf
           <section class="form-card">
             <div class="card-header">
@@ -81,12 +81,12 @@
                 <div class="form-group">
                   <label for="categoryName">Category Name</label>
                   <input type="text" id="categoryName" name="name" class="input-text" placeholder="e.g. Mobiles"
-                    value="{{ old('name') }}" maxlength="255" oninput="autoSlug(this.value)" required>
+                    value="{{ old('name') }}" maxlength="255" oninput="autoSlug(this.value)">
                 </div>
                 <div class="form-group">
                   <label for="categorySlug">Slug (URL)</label>
                   <input type="text" id="categorySlug" name="slug" class="input-text" placeholder="mobiles"
-                    value="{{ old('slug') }}" maxlength="255" required>
+                    value="{{ old('slug') }}" maxlength="255">
                 </div>
               </div>
 
@@ -96,8 +96,7 @@
                   <select id="categoryParent" name="parent_id" class="select-input">
                     <option value="">— None (Top level) —</option>
                     @foreach ($parentCategories as $parentCategory)
-                      <option value="{{ $parentCategory->id }}"
-                        {{ (string) old('parent_id') === (string) $parentCategory->id ? 'selected' : '' }}>
+                      <option value="{{ $parentCategory->id }}" {{ (string) old('parent_id') === (string) $parentCategory->id ? 'selected' : '' }}>
                         {{ $parentCategory->name }}
                       </option>
                     @endforeach
@@ -139,7 +138,8 @@
                 <div class="form-group">
                   <label for="categoryDiscountedPrice">Discounted Price (&#8377;)</label>
                   <input type="number" id="categoryDiscountedPrice" name="discounted_price" class="input-text"
-                    placeholder="0" min="0" step="0.01" value="{{ old('discounted_price') }}" oninput="updateDiscount()">
+                    placeholder="0" min="0" step="0.01" value="{{ old('discounted_price') }}"
+                    oninput="updateDiscount()">
                 </div>
               </div>
               <div class="form-group">
@@ -166,8 +166,7 @@
             </div>
             <div class="card-body">
               <div class="visibility-toggle">
-                <input type="checkbox" id="categoryActive" name="is_active" value="1"
-                  {{ old('is_active', '1') ? 'checked' : '' }}>
+                <input type="checkbox" id="categoryActive" name="is_active" value="1" {{ old('is_active', '1') ? 'checked' : '' }}>
                 <label for="categoryActive">Show this category on the storefront</label>
               </div>
             </div>
@@ -196,6 +195,8 @@
     <span id="toastMessage">Category saved.</span>
   </div>
 
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="{{ asset('assets/js/ajax.js') }}"></script>
   <script>
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const adminSidebar = document.getElementById('adminSidebar');

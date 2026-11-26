@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendPasswordResetEmailJob;
 use App\Jobs\SendWelcomeEmailJob;
-use App\Mail\ResetPasswordMail;
 use App\Models\Order;
 use App\Models\users;
 use Carbon\Carbon;
@@ -12,7 +12,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Razorpay\Api\Api;
@@ -77,10 +76,15 @@ class UserController extends Controller
                 session([
                     'admin_id' => $user->id,
                     'admin_name' => $user->name,
-                    'user_id' => $user->id,
-                    'user_name' => $user->name,
-                    'user_role' => 'admin',
                 ]);
+
+                if (! session()->has('user_id') || session('user_role') === 'admin') {
+                    session([
+                        'user_id' => $user->id,
+                        'user_name' => $user->name,
+                        'user_role' => 'admin',
+                    ]);
+                }
 
                 if (! is_string($intended) || ! str_contains($intended, 'admin')) {
                     $intended = '/adminorders';
@@ -209,11 +213,14 @@ class UserController extends Controller
     public function logout(Request $request): RedirectResponse
     {
         Auth::logout();
-        session()->forget(['user_id', 'user_name', 'user_role']);
 
-        if (! session('admin_id')) {
+        if (session('user_role') === 'admin' || ! session()->has('admin_id')) {
+            session()->forget(['admin_id', 'admin_name', 'user_id', 'user_name', 'user_role']);
             session()->flush();
             $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        } else {
+            session()->forget(['user_id', 'user_name', 'user_role']);
             $request->session()->regenerateToken();
         }
 
@@ -389,22 +396,9 @@ class UserController extends Controller
             'email' => $request->email,
         ]);
 
-        $mailSent = false;
-        try {
-            Mail::to($request->email)->send(new ResetPasswordMail($user, $resetUrl));
-            $mailSent = true;
-        } catch (\Throwable $e) {
-            $mailSent = false;
-        }
+        SendPasswordResetEmailJob::dispatch($user, $resetUrl)->onQueue('emails');
 
-        $redirect = back()->with('success', 'A password reset link has been emailed to '.$request->email.'. Please check your inbox.');
-
-        if (! $mailSent) {
-            $redirect->with('warning', 'Notice: Could not connect to mail server in this environment.')
-                ->with('reset_link', $resetUrl);
-        }
-
-        return $redirect;
+        return back()->with('success', 'A password reset link has been emailed to '.$request->email.'. Please check your inbox.');
     }
 
     /**

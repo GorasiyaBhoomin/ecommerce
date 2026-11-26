@@ -32,6 +32,15 @@ class Order extends Model
         // Razorpay
         'razorpay_order_id',
         'razorpay_payment_id',
+
+        // Email status tracking
+        'email_status',
+        'email_sent_at',
+        'email_error',
+    ];
+
+    protected $casts = [
+        'email_sent_at' => 'datetime',
     ];
 
     public function items()

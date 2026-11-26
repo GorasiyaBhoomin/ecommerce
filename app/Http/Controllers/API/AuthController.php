@@ -3,15 +3,14 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendPasswordResetEmailJob;
 use App\Jobs\SendWelcomeEmailJob;
-use App\Mail\ResetPasswordMail;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
@@ -183,11 +182,7 @@ class AuthController extends Controller
 
         $resetUrl = route('password.reset', ['token' => $token, 'email' => $request->email]);
 
-        try {
-            Mail::to($request->email)->send(new ResetPasswordMail($user, $resetUrl));
-        } catch (\Throwable $e) {
-            // Mail transport error
-        }
+        SendPasswordResetEmailJob::dispatch($user, $resetUrl)->onQueue('emails');
 
         return response()->json([
             'status' => true,

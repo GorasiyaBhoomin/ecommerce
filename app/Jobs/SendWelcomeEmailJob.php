@@ -60,4 +60,3 @@ class SendWelcomeEmailJob implements ShouldQueue
         ]);
     }
 }
-

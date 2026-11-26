@@ -62,16 +62,30 @@
             </svg>
             Back to Orders
           </a>
-<form action="{{ route('admin.orders.sendEmail', $order->id) }}"
-      method="POST">
-
-    @csrf
-
-    <button type="submit" class="btn-email" id="sendEmailBtn">
-        Send Email
-    </button>
-
-</form>
+<div style="display: flex; align-items: center; gap: 8px;">
+  <form action="{{ route('admin.orders.sendEmail', $order->id) }}" method="POST" style="margin: 0;">
+      @csrf
+      <button type="submit" class="btn-email" id="sendEmailBtn">
+          {{ $order->email_status === 'sent' ? 'Resend Email' : 'Send Email' }}
+      </button>
+  </form>
+  @if($order->email_status === 'sent')
+    <span title="Delivered to customer inbox {{ $order->email_sent_at ? 'at ' . $order->email_sent_at->format('d M, h:i A') : '' }}" style="display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; font-size: 12px; font-weight: 700; border-radius: 8px; background: #DCFCE7; color: #166534; border: 1px solid #86EFAC;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Email Sent
+    </span>
+  @elseif($order->email_status === 'queued')
+    <span title="Waiting in background queue worker" style="display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; font-size: 12px; font-weight: 700; border-radius: 8px; background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Queued
+    </span>
+  @elseif($order->email_status === 'failed')
+    <span title="{{ $order->email_error ?: 'Email failed to send' }}" style="display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; font-size: 12px; font-weight: 700; border-radius: 8px; background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Failed
+    </span>
+  @endif
+</div>
           <button class="btn-primary" id="saveStatusBtn" type="submit" form="orderStatusForm">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
@@ -90,6 +104,28 @@
         @endif
         @if($errors->any())
           <div class="status-save-bar" role="alert">{{ $errors->first() }}</div>
+        @endif
+
+        @if($order->email_status === 'failed')
+          <div style="background: #FEF2F2; border: 1px solid #FECACA; color: #991B1B; padding: 12px 18px; border-radius: 10px; margin-bottom: 16px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div>
+                <strong>Background Email Failed:</strong> {{ $order->email_error ?: 'Could not deliver email to customer. Check mail server settings.' }}
+              </div>
+            </div>
+            <form action="{{ route('admin.orders.sendEmail', $order->id) }}" method="POST" style="margin: 0;">
+              @csrf
+              <button type="submit" style="background: #991B1B; color: #FFFFFF; border: none; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;">Retry Send</button>
+            </form>
+          </div>
+        @elseif($order->email_status === 'queued')
+          <div style="background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; padding: 12px 18px; border-radius: 10px; margin-bottom: 16px; font-size: 13px; display: flex; align-items: center; gap: 10px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <div>
+              <strong>Order email is queued in background:</strong> **Email queued successfully!** Your order confirmation email is being processed and will be delivered shortly..
+            </div>
+          </div>
         @endif
         <!-- Clickable 5-Step Status Selector Card -->
         <section class="status-tracker-card" aria-label="Order status control">
@@ -279,6 +315,36 @@
                   <div class="info-item">
                     <span class="info-label">Email Address</span>
                     <span class="info-value">{{ $order->user?->email ?? '—' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Email Status</span>
+                    <div class="info-value" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                      @if($order->email_status === 'sent')
+                        <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; font-size: 12px; font-weight: 700; border-radius: 6px; background: #DCFCE7; color: #166534; border: 1px solid #86EFAC;">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                          Sent {{ $order->email_sent_at ? '(' . $order->email_sent_at->format('d M, h:i A') . ')' : '' }}
+                        </span>
+                      @elseif($order->email_status === 'queued')
+                        <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; font-size: 12px; font-weight: 700; border-radius: 6px; background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D;">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                          Queued
+                        </span>
+                      @elseif($order->email_status === 'failed')
+                        <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; font-size: 12px; font-weight: 700; border-radius: 6px; background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5;">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                          Failed
+                        </span>
+                        @if($order->email_error)
+                          <span style="font-size: 11px; color: #DC2626; max-width: 200px; text-align: right; word-break: break-word;" title="{{ $order->email_error }}">
+                            {{ \Illuminate\Support\Str::limit($order->email_error, 50) }}
+                          </span>
+                        @endif
+                      @else
+                        <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; font-size: 12px; font-weight: 600; border-radius: 6px; background: #F1F5F9; color: #64748B; border: 1px solid #CBD5E1;">
+                          Not Sent
+                        </span>
+                      @endif
+                    </div>
                   </div>
                   <div class="info-item">
                     <span class="info-label">Phone Number</span>

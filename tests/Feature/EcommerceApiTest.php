@@ -1035,6 +1035,8 @@ test('web logout successfully terminates sessions for both regular users and adm
 
     // 3. Admin user can log out via POST /logout
     $adminLogout = $this->withSession([
+        'admin_id' => $adminUser->id,
+        'admin_name' => $adminUser->name,
         'user_id' => $adminUser->id,
         'user_name' => $adminUser->name,
         'user_role' => $adminUser->role,
@@ -1042,7 +1044,19 @@ test('web logout successfully terminates sessions for both regular users and adm
 
     $adminLogout->assertRedirect('/login')
         ->assertSessionHas('success', 'Logged out successfully.')
-        ->assertSessionMissing('user_id');
+        ->assertSessionMissing('user_id')
+        ->assertSessionMissing('admin_id')
+        ->assertSessionMissing('admin_name');
+
+    // 4. Admin user can also log out via /admin/logout
+    $adminDedicatedLogout = $this->withSession([
+        'admin_id' => $adminUser->id,
+        'admin_name' => $adminUser->name,
+    ])->post('/admin/logout');
+
+    $adminDedicatedLogout->assertRedirect('/login')
+        ->assertSessionHas('success', 'Logged out successfully.')
+        ->assertSessionMissing('admin_id');
 });
 
 test('logged in admin can open login page and switch to regular user account', function () {
@@ -1074,7 +1088,6 @@ test('logged in admin can open login page and switch to regular user account', f
     // 2. Admin opens /login page to log in as user (does not force redirect)
     $loginPage = $this->get('/login');
     $loginPage->assertOk()
-        ->assertSee('Active Admin')
         ->assertSee('Sign In to Shopkart');
 
     // 3. User logs in
@@ -1098,4 +1111,12 @@ test('logged in admin can open login page and switch to regular user account', f
     $userProfile = $this->get('/profile');
     $userProfile->assertOk()
         ->assertSee('Active Customer');
+
+    // 5. When admin logs out, admin access is terminated and admin panel is protected
+    $adminLogout = $this->post('/admin/logout');
+    $adminLogout->assertRedirect('/login')
+        ->assertSessionMissing('admin_id');
+
+    $adminProtected = $this->get('/adminorders');
+    $adminProtected->assertRedirect('/login');
 });

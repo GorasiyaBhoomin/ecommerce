@@ -13,14 +13,19 @@
 <header class="site-header">
   <div class="header-container">
     <a href="/index" class="brand-logo-area">
-      <div class="brand-icon-box">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
-          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-          <path d="M3 6h18" />
-          <path d="M16 10a4 4 0 0 1-8 0" />
-        </svg>
-      </div>
-      <span class="brand-title">Shopkart</span>
+      @if (setting('store_logo'))
+        <img src="{{ asset(setting('store_logo')) }}" alt="{{ setting('store_name', 'Shopkart') }}"
+             style="height: 32px; width: auto; max-width: 120px; object-fit: contain; margin-right: 8px;">
+      @else
+        <div class="brand-icon-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+            <path d="M3 6h18" />
+            <path d="M16 10a4 4 0 0 1-8 0" />
+          </svg>
+        </div>
+      @endif
+      <span class="brand-title">{{ setting('store_name', 'Shopkart') }}</span>
     </a>
 
     @if ($showSearch)

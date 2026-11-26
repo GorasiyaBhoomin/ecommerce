@@ -9,14 +9,20 @@ use Illuminate\Support\Facades\DB;
 
 class AdminVariantController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Build the query and shared data for the variants management views.
+     */
+    protected function getVariantGroupsData(Request $request): array
     {
         $search = $request->string('search')->trim()->toString();
         if ($search === '') {
             $search = $request->string('q')->trim()->toString();
         }
 
-        $query = VariantGroup::with(['values', 'categories'])->orderBy('name');
+        $statusFilter = $request->string('status')->trim()->toString();
+        $categoryIdFilter = $request->string('category_id')->trim()->toString();
+
+        $query = VariantGroup::with(['values', 'categories']);
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
@@ -24,20 +30,94 @@ class AdminVariantController extends Controller
                     ->orWhere('label', 'like', '%'.$search.'%')
                     ->orWhereHas('values', function ($vQ) use ($search) {
                         $vQ->where('value', 'like', '%'.$search.'%');
+                    })
+                    ->orWhereHas('categories', function ($cQ) use ($search) {
+                        $cQ->where('name', 'like', '%'.$search.'%');
                     });
             });
         }
 
-        return view('admin.admin-variants', [
-            'variantGroups' => $query->get(),
+        if ($statusFilter === 'active') {
+            $query->where('is_active', true);
+        } elseif ($statusFilter === 'hidden' || $statusFilter === 'inactive') {
+            $query->where('is_active', false);
+        }
+
+        if ($categoryIdFilter !== '' && $categoryIdFilter !== 'all') {
+            $query->whereHas('categories', function ($cQ) use ($categoryIdFilter) {
+                $cQ->where('categories.id', (int) $categoryIdFilter);
+            });
+        }
+
+        // Sorting
+        $allowedSorts = ['name', 'label', 'is_active', 'created_at'];
+        $sortBy = $request->string('sort_by')->trim()->toString();
+        $sortDir = strtolower($request->string('sort_dir', 'asc')->toString()) === 'desc' ? 'desc' : 'asc';
+
+        if (in_array($sortBy, $allowedSorts, true)) {
+            $query->orderBy($sortBy, $sortDir);
+        } else {
+            $query->orderBy('name', 'asc');
+        }
+
+        $perPage = (int) $request->input('per_page', 10);
+        if (! in_array($perPage, [5, 10, 25, 50, 100], true)) {
+            $perPage = 10;
+        }
+
+        $variantGroups = $query->paginate($perPage)->withQueryString();
+        $categories = Category::orderBy('name')->get();
+
+        $editGroup = null;
+        if ($request->filled('edit')) {
+            $editGroup = VariantGroup::with(['values', 'categories'])->find($request->input('edit'));
+        }
+
+        return [
+            'variantGroups' => $variantGroups,
+            'categories' => $categories,
             'search' => $search,
-        ]);
+            'statusFilter' => $statusFilter,
+            'categoryIdFilter' => $categoryIdFilter,
+            'perPage' => $perPage,
+            'sortBy' => $sortBy,
+            'sortDir' => $sortDir,
+            'editGroup' => $editGroup,
+        ];
     }
 
-    public function create()
+    public function index(Request $request)
     {
-        return view('admin.admin-add-variant', [
-            'categories' => Category::orderBy('name')->get(),
+        $data = $this->getVariantGroupsData($request);
+        $data['editGroup'] = null;
+
+        return view('admin.admin-variants', $data);
+    }
+
+    public function create(Request $request)
+    {
+        $data = $this->getVariantGroupsData($request);
+        $data['editGroup'] = null;
+
+        return view('admin.admin-add-variant', $data);
+    }
+
+    public function edit(Request $request, string $id)
+    {
+        $group = VariantGroup::with(['values', 'categories'])->findOrFail($id);
+        $data = $this->getVariantGroupsData($request);
+        $data['editGroup'] = $group;
+
+        return view('admin.admin-edit-variant', $data);
+    }
+
+    public function showJson(string $id)
+    {
+        $group = VariantGroup::with(['values', 'categories'])->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'group' => $group,
         ]);
     }
 
@@ -46,14 +126,14 @@ class AdminVariantController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255|unique:variant_groups,name',
             'label' => 'nullable|string|max:255',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable|boolean',
             'category_id' => 'nullable|exists:categories,id',
             'values' => 'required|array|min:1',
             'values.*.value' => 'required|string|max:255',
             'values.*.sku_suffix' => 'nullable|string|max:255',
         ]);
 
-        DB::transaction(function () use ($data, $request) {
+        $group = DB::transaction(function () use ($data, $request) {
             $group = VariantGroup::create([
                 'name' => $data['name'],
                 'label' => $data['label'] ?? null,
@@ -62,17 +142,19 @@ class AdminVariantController extends Controller
 
             $group->categories()->sync($data['category_id'] ? [$data['category_id']] : []);
             $group->values()->createMany($data['values']);
+
+            return $group;
         });
 
-        return redirect()->route('admin.variants')->with('success', 'Variant group created successfully.');
-    }
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Variant group created successfully.',
+                'group' => $group->load(['values', 'categories']),
+            ]);
+        }
 
-    public function edit(string $id)
-    {
-        return view('admin.admin-edit-variant', [
-            'group' => VariantGroup::with(['values', 'categories'])->findOrFail($id),
-            'categories' => Category::orderBy('name')->get(),
-        ]);
+        return redirect()->route('admin.variants')->with('success', 'Variant group created successfully.');
     }
 
     public function update(Request $request, string $id)
@@ -82,7 +164,7 @@ class AdminVariantController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255|unique:variant_groups,name,'.$group->id,
             'label' => 'nullable|string|max:255',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable|boolean',
             'category_id' => 'nullable|exists:categories,id',
             'values' => 'required|array|min:1',
             'values.*.id' => 'nullable|integer',
@@ -116,13 +198,87 @@ class AdminVariantController extends Controller
             $group->values()->whereNotIn('id', $keptValueIds)->delete();
         });
 
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Variant group updated successfully.',
+                'group' => $group->fresh(['values', 'categories']),
+            ]);
+        }
+
         return redirect()->route('admin.variants')->with('success', 'Variant group updated successfully.');
     }
 
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
-        VariantGroup::findOrFail($id)->delete();
+        $group = VariantGroup::findOrFail($id);
+        $name = $group->name;
 
-        return redirect()->route('admin.variants')->with('success', 'Variant group deleted successfully.');
+        DB::transaction(function () use ($group) {
+            $group->categories()->detach();
+            $group->values()->delete();
+            $group->delete();
+        });
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Variant group \"{$name}\" deleted successfully.",
+            ]);
+        }
+
+        return redirect()->route('admin.variants')->with('success', "Variant group \"{$name}\" deleted successfully.");
+    }
+
+    public function toggleStatus(VariantGroup $variant)
+    {
+        $variant->is_active = ! $variant->is_active;
+        $variant->save();
+
+        $statusText = $variant->is_active ? 'Active' : 'Inactive';
+
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'is_active' => (bool) $variant->is_active,
+                'status_text' => $statusText,
+                'message' => "Variant group \"{$variant->name}\" status updated to {$statusText}.",
+            ]);
+        }
+
+        return back()->with('success', "Variant group \"{$variant->name}\" status updated to {$statusText}.");
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:variant_groups,id',
+        ]);
+
+        $ids = $request->input('ids', []);
+        $deletedCount = 0;
+
+        DB::transaction(function () use ($ids, &$deletedCount) {
+            $groups = VariantGroup::whereIn('id', $ids)->get();
+            foreach ($groups as $group) {
+                $group->categories()->detach();
+                $group->values()->delete();
+                $group->delete();
+                $deletedCount++;
+            }
+        });
+
+        $message = "Deleted {$deletedCount} variant group(s) successfully.";
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'deleted_count' => $deletedCount,
+                'message' => $message,
+            ]);
+        }
+
+        return redirect()->route('admin.variants')->with('success', $message);
     }
 }

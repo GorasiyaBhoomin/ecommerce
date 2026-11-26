@@ -75,7 +75,7 @@
           </div>
         @endif
 
-        <form id="categoryForm" method="POST" action="/admineditcategory/{{ $category->id }}"
+        <form id="categoryForm" method="POST" action="/admineditcategory/{{ $category->id }}" class="ajax-form" data-reset="false"
           onsubmit="return saveCategory(event)" style="margin-top: 24px;">
           @csrf
           <section class="form-card">
@@ -107,8 +107,7 @@
                   <select id="categoryParent" name="parent_id" class="select-input">
                     <option value="">— None (Top level) —</option>
                     @foreach ($parentCategories as $parentCategory)
-                      <option value="{{ $parentCategory->id }}"
-                        {{ (string) old('parent_id', $category->parent_id) === (string) $parentCategory->id ? 'selected' : '' }}>
+                      <option value="{{ $parentCategory->id }}" {{ (string) old('parent_id', $category->parent_id) === (string) $parentCategory->id ? 'selected' : '' }}>
                         {{ $parentCategory->name }}
                       </option>
                     @endforeach
@@ -123,7 +122,8 @@
 
               <div class="form-group">
                 <label for="categoryDescription">Description</label>
-                <textarea id="categoryDescription" name="description" class="textarea-input">{{ old('description', $category->description) }}</textarea>
+                <textarea id="categoryDescription" name="description"
+                  class="textarea-input">{{ old('description', $category->description) }}</textarea>
               </div>
             </div>
           </section>
@@ -148,8 +148,8 @@
                 </div>
                 <div class="form-group">
                   <label for="categoryDiscountedPrice">Discounted Price (&#8377;)</label>
-                  <input type="number" id="categoryDiscountedPrice" name="discounted_price" class="input-text"
-                    min="0" step="0.01" value="{{ old('discounted_price', $category->discounted_price) }}"
+                  <input type="number" id="categoryDiscountedPrice" name="discounted_price" class="input-text" min="0"
+                    step="0.01" value="{{ old('discounted_price', $category->discounted_price) }}"
                     oninput="updateDiscount()">
                 </div>
               </div>
@@ -177,8 +177,7 @@
             </div>
             <div class="card-body">
               <div class="visibility-toggle">
-                <input type="checkbox" id="categoryActive" name="is_active" value="1"
-                  {{ old('is_active', $category->is_active) ? 'checked' : '' }}>
+                <input type="checkbox" id="categoryActive" name="is_active" value="1" {{ old('is_active', $category->is_active) ? 'checked' : '' }}>
                 <label for="categoryActive">Show this category on the storefront</label>
               </div>
             </div>
@@ -228,6 +227,8 @@
     <span id="toastMessage">Category updated.</span>
   </div>
 
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="{{ asset('assets/js/ajax.js') }}"></script>
   <script>
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const adminSidebar = document.getElementById('adminSidebar');

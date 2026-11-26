@@ -1,9 +1,21 @@
 <?php
 
 use App\Models\Language;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    User::create([
+        'id' => 1,
+        'name' => 'Admin User',
+        'email' => 'admin@example.com',
+        'password' => Hash::make('password'),
+        'role' => 'admin',
+    ]);
+});
 
 test('admin can view the languages page with presets and metrics', function () {
     Language::create([

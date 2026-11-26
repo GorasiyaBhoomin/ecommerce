@@ -4,7 +4,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Checkout &amp; Order Placement | Shopkart</title>
+  <title>Checkout &amp; Order Placement | {{ setting('store_name', 'Shopkart') }}</title>
+  @if (setting('store_favicon'))
+    <link rel="icon" href="{{ asset(setting('store_favicon')) }}">
+  @endif
   <!-- Google Fonts: Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -373,7 +376,7 @@
 
             <span id="billDelivery">
               @if($deliveryFee > 0)
-                &#8377;{{ number_format($deliveryFee, 0) }}
+                {{ setting('currency_symbol', '₹') }}{{ number_format($deliveryFee, 2) }}
               @else
                 <span style="color: #166534; font-weight: 700;">FREE</span>
               @endif
@@ -385,7 +388,7 @@
             <span>Total Bill Amount</span>
 
             <span style="color: var(--primary-teal);" id="billTotal">
-              &#8377;{{ number_format($total, 0) }}
+              {{ setting('currency_symbol', '₹') }}{{ number_format($total, 2) }}
             </span>
 
           </div>
@@ -393,12 +396,12 @@
           <button type="submit" form="checkoutForm" class="btn-place-order" @if($cartItems->isEmpty()) disabled @endif>
 
             Place Order •
-            ₹{{ number_format($total, 0) }}
+            {{ setting('currency_symbol', '₹') }}{{ number_format($total, 2) }}
 
           </button>
 
           <div style="font-size: 11px; color: var(--muted); text-align: center; line-height: 1.4;">
-            By placing your order, you agree to Shopkart's Terms of Sale &amp; Delivery Policies.
+            By placing your order, you agree to {{ setting('store_name', 'Shopkart') }}'s Terms of Sale &amp; Delivery Policies.
           </div>
 
         </div>
@@ -530,9 +533,9 @@ document.getElementById('checkoutForm').addEventListener(
 
                 currency: data.currency,
 
-                name: 'Shopkart',
+                name: '{{ setting('store_name', 'Shopkart') }}',
 
-                description: 'Shopkart Order Payment',
+                description: '{{ setting('store_name', 'Shopkart') }} Order Payment',
 
                 order_id: data.order_id,
 

@@ -165,6 +165,10 @@
       gap: 24px;
     }
 
+    .main-content.main-content-wide {
+      max-width: 1240px;
+    }
+
     .page-header-row {
       display: flex;
       align-items: center;

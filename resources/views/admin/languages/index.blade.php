@@ -4,13 +4,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ __('Languages') }} | Shopkart Admin</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title> Shopkart Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
   <link href="{{ asset('assets/css/adminproducts.css') }}" rel="stylesheet">
   <link href="{{ asset('assets/css/admin-notifications.css') }}" rel="stylesheet">
+  <link href="{{ asset('assets/css/admin-tables.css') }}" rel="stylesheet">
   <style>
     /* Dedicated language panel styles */
     .lang-stats-grid {
@@ -448,7 +450,65 @@
         <!-- Main 2-Column Panel Layout -->
         <div class="lang-layout-grid">
           <!-- Left Column: Table of Languages -->
-          <div class="lang-table-col">
+          <div class="lang-table-col" id="languageTableCard">
+            <!-- Languages Toolbar (Search, Status, Default, Reset) -->
+            <div class="table-toolbar-card" style="margin-bottom: 16px; border-radius: 12px;">
+              <form method="GET" action="{{ route('admin.languages.index') }}" class="table-toolbar-form" id="languagesFilterForm">
+                @if (request('sort_by'))
+                  <input type="hidden" name="sort_by" value="{{ request('sort_by') }}">
+                @endif
+                @if (request('sort_dir'))
+                  <input type="hidden" name="sort_dir" value="{{ request('sort_dir') }}">
+                @endif
+
+                <div class="table-toolbar-left">
+                  <div class="table-search-box">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.3-4.3" />
+                    </svg>
+                    <input type="text" name="search" class="search-input" placeholder="{{ __('Search language or code...') }}"
+                      value="{{ request('search') ?? request('q') }}" autocomplete="off" aria-label="{{ __('Search languages') }}">
+                    <button type="button" class="search-clear-btn" style="{{ (request('search') || request('q')) ? 'display:flex;' : 'display:none;' }}" onclick="clearTableSearch(this)" title="Clear search">✕</button>
+                  </div>
+
+                  <!-- Status Filter -->
+                  <select name="status" class="table-filter-select {{ request('status') ? 'has-value' : '' }}" aria-label="Filter by status">
+                    <option value="">{{ __('All Statuses') }}</option>
+                    <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>{{ __('Active') }}</option>
+                    <option value="disabled" {{ request('status') === 'disabled' ? 'selected' : '' }}>{{ __('Disabled') }}</option>
+                  </select>
+
+                  <!-- Default Filter -->
+                  <select name="default" class="table-filter-select {{ request('default') ? 'has-value' : '' }}" aria-label="Filter by default">
+                    <option value="">{{ __('All Locales') }}</option>
+                    <option value="yes" {{ request('default') === 'yes' ? 'selected' : '' }}>{{ __('Default Only') }}</option>
+                    <option value="no" {{ request('default') === 'no' ? 'selected' : '' }}>{{ __('Non-Default') }}</option>
+                  </select>
+                </div>
+
+                <div class="table-toolbar-right">
+                  <button type="button" class="btn-bulk-delete" style="display: none;" onclick="executeBulkDelete('languages', '{{ route('admin.languages.bulk-delete') }}')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    {{ __('Delete Selected') }} (<span class="selected-count">0</span>)
+                  </button>
+
+                  @if (request('search') || request('q') || request('status') || request('default') || request('sort_by'))
+                    <a href="{{ route('admin.languages.index') }}" class="btn-table-reset" title="Reset all filters and search">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                      </svg>
+                      Reset Filters
+                    </a>
+                  @endif
+                </div>
+              </form>
+            </div>
+
             <section class="category-section-card">
               <div class="category-card-header">
                 <div class="category-title-wrap">
@@ -458,13 +518,7 @@
                     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                   </svg>
                   <h2 class="category-title">{{ __('All Languages') }}</h2>
-                  <span class="category-badge-pill" id="languageCountPill">{{ $totalCount }} {{ __('Languages') }}</span>
-                </div>
-
-                <div class="filter-pills-wrap">
-                  <button type="button" class="filter-pill active" data-filter="all" onclick="filterStatus('all', this)">{{ __('All') }} ({{ $totalCount }})</button>
-                  <button type="button" class="filter-pill" data-filter="active" onclick="filterStatus('active', this)">{{ __('Active') }} ({{ $activeCount }})</button>
-                  <button type="button" class="filter-pill" data-filter="disabled" onclick="filterStatus('disabled', this)">{{ __('Disabled') }} ({{ $totalCount - $activeCount }})</button>
+                  <span class="category-badge-pill" id="languageCountPill">{{ $languages->total() }} {{ __('Languages') }}</span>
                 </div>
               </div>
 
@@ -472,10 +526,13 @@
                 <table class="products-table">
                   <thead>
                     <tr>
-                      <th>{{ __('Language') }}</th>
-                      <th>{{ __('Code') }}</th>
-                      <th>{{ __('Default') }}</th>
-                      <th>{{ __('Status') }}</th>
+                      <th style="width: 44px; text-align: center;">
+                        <input type="checkbox" class="form-check-input select-all-checkbox" aria-label="{{ __('Select all languages') }}">
+                      </th>
+                      @include('admin.partials.sort-th', ['column' => 'name', 'label' => __('Language')])
+                      @include('admin.partials.sort-th', ['column' => 'code', 'label' => __('Code')])
+                      @include('admin.partials.sort-th', ['column' => 'is_default', 'label' => __('Default')])
+                      @include('admin.partials.sort-th', ['column' => 'is_active', 'label' => __('Status')])
                       <th style="text-align: right;">{{ __('Actions') }}</th>
                     </tr>
                   </thead>
@@ -486,6 +543,11 @@
                         $rowStatus = $lang->is_active ? 'active' : 'disabled';
                       @endphp
                       <tr class="lang-row" data-search="{{ $searchPayload }}" data-status="{{ $rowStatus }}">
+                        <td style="text-align: center;">
+                          <input type="checkbox" class="form-check-input row-checkbox" value="{{ $lang->id }}"
+                            {{ $lang->is_default ? 'disabled title="Default language cannot be deleted"' : '' }}
+                            aria-label="{{ __('Select language') }}">
+                        </td>
                         <td>
                           <div class="product-meta-cell">
                             <div class="product-icon-wrap" style="color: var(--primary-teal, #0F766E); background: #E6F4F1; border-color: rgba(15,118,110,0.15); font-weight: 800; font-size: 13px; letter-spacing: 0.5px;">
@@ -528,24 +590,31 @@
                         </td>
 
                         <td>
-                          @if ($lang->is_active)
-                            <span class="badge badge-in_stock"><span class="badge-dot"></span>{{ __('Active') }}</span>
-                          @else
-                            <span class="badge badge-out_of_stock"><span class="badge-dot"></span>{{ __('Disabled') }}</span>
-                          @endif
+                          <div class="status-toggle-wrap">
+                            <label class="form-check form-switch" title="{{ $lang->is_default ? __('Default language cannot be disabled') : __('Toggle status') }}">
+                              <input type="checkbox" class="form-check-input status-toggle-input"
+                                data-url="{{ route('admin.languages.toggle', $lang) }}"
+                                data-id="{{ $lang->id }}"
+                                {{ $lang->is_default ? 'disabled' : '' }}
+                                {{ $lang->is_active ? 'checked' : '' }}>
+                            </label>
+                            <span class="badge {{ $lang->is_active ? 'bg-success' : 'bg-secondary' }} status-badge-{{ $lang->id }}">
+                              {{ $lang->is_active ? __('Active') : __('Disabled') }}
+                            </span>
+                          </div>
                         </td>
 
                         <td>
-                          <div class="table-actions" style="justify-content: flex-end;">
-                            @if ($lang->is_default)
-                              <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted, #64748B); font-weight: 600; padding: 6px 8px;">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                                </svg>
-                                {{ __('Primary') }}
-                              </span>
-                            @else
+                          <div class="table-actions" style="justify-content: flex-end; gap: 6px;">
+                            <button type="button" class="edit-btn" onclick="openEditLanguageModal({{ $lang->id }}, '{{ addslashes($lang->name) }}', '{{ addslashes($lang->native_name ?? '') }}')" title="{{ __('Edit Language') }}">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                              </svg>
+                              <span>{{ __('Edit') }}</span>
+                            </button>
+
+                            @if (! $lang->is_default)
                               <!-- Set Default Button -->
                               <form method="POST" action="{{ route('admin.languages.default', $lang) }}" style="display:inline; margin:0;">
                                 @csrf
@@ -558,63 +627,40 @@
                                 </button>
                               </form>
 
-                              <!-- Toggle Active Button -->
-                              <form method="POST" action="{{ route('admin.languages.toggle', $lang) }}" style="display:inline; margin:0;">
-                                @csrf
-                                @method('PATCH')
-                                <button type="submit" class="edit-btn" title="{{ $lang->is_active ? __('Disable') : __('Enable') }}">
-                                  @if ($lang->is_active)
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                      <circle cx="12" cy="12" r="10" />
-                                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-                                    </svg>
-                                    {{ __('Disable') }}
-                                  @else
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                      <polyline points="20 6 9 17 4 12" />
-                                    </svg>
-                                    {{ __('Enable') }}
-                                  @endif
-                                </button>
-                              </form>
-
                               <!-- Delete Button -->
-                              <form method="POST" action="{{ route('admin.languages.destroy', $lang) }}" style="display:inline; margin:0;"
-                                onsubmit="return confirm('Are you sure you want to delete &quot;{{ $lang->name }}&quot;? This will remove its locale setting.');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="delete-btn" title="{{ __('Delete') }}">
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="3 6 5 6 21 6" />
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                  </svg>
-                                  {{ __('Delete') }}
-                                </button>
-                              </form>
+                              <button type="button" class="delete-btn ajax-delete"
+                                data-url="{{ route('admin.languages.destroy', $lang) }}"
+                                data-id="{{ $lang->id }}"
+                                data-confirm="{{ __('Delete language') }} {{ addslashes($lang->name) }}?"
+                                data-table="#languageTableCard"
+                                title="{{ __('Delete') }}">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                                {{ __('Delete') }}
+                              </button>
                             @endif
                           </div>
                         </td>
                       </tr>
                     @empty
-                      <tr id="emptyLanguagesRow">
-                        <td colspan="5" style="text-align: center; padding: 40px 16px; color: var(--muted, #64748B); font-size: 13px;">
-                          {{ __('No languages installed yet.') }}
-                        </td>
-                      </tr>
+                      @include('admin.partials.empty-state', [
+                        'colspan' => 6,
+                        'title' => __('No languages found'),
+                        'message' => __('No languages match your search or filter criteria.'),
+                        'resetUrl' => route('admin.languages.index'),
+                        'hasFilters' => (bool) (request('search') || request('q') || request('status') || request('default') || request('sort_by')),
+                      ])
                     @endforelse
                   </tbody>
                 </table>
               </div>
 
-              <!-- Pagination Footer -->
-              <div class="table-pagination-bar" id="paginationBar">
-                <div class="pagination-info" id="paginationInfo">
-                  Showing 1 to 15 of {{ $totalCount }} languages
-                </div>
-                <div class="pagination-controls" id="paginationControls">
-                  <!-- Dynamically populated via JS -->
-                </div>
-              </div>
+              @include('admin.partials.table-pagination', [
+                'paginator' => $languages,
+                'recordName' => 'languages'
+              ])
             </section>
           </div>
 
@@ -654,7 +700,7 @@
                   </div>
                 @endif
 
-                <form method="POST" action="{{ route('admin.languages.store') }}" id="addLanguageForm">
+                <form method="POST" action="{{ route('admin.languages.store') }}" id="addLanguageForm" class="ajax-form" data-table="#languageTableCard">
                   @csrf
 
                   <div class="form-group">
@@ -873,7 +919,102 @@
     document.addEventListener('DOMContentLoaded', function () {
       renderTable();
     });
+
+    function openEditLanguageModal(id, name, nativeName) {
+      document.getElementById('editLanguageId').value = id;
+      document.getElementById('editLanguageName').value = name;
+      document.getElementById('editLanguageNativeName').value = nativeName || '';
+      document.getElementById('editLanguageModal').classList.add('open');
+    }
+
+    function closeEditLanguageModal() {
+      document.getElementById('editLanguageModal').classList.remove('open');
+    }
+
+    function submitEditLanguageForm(event) {
+      event.preventDefault();
+      const id = document.getElementById('editLanguageId').value;
+      const btn = document.getElementById('saveLanguageBtn');
+      const payload = {
+        name: document.getElementById('editLanguageName').value,
+        native_name: document.getElementById('editLanguageNativeName').value,
+      };
+
+      const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+      const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      fetch(`/adminlanguages/${id}/update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok || data.success === false) {
+          throw new Error(data.message || 'Failed to update language.');
+        }
+        return data;
+      })
+      .then(data => {
+        closeEditLanguageModal();
+        showAdminToast(data.message || 'Language updated successfully.', 'success');
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+        if (typeof refreshTable === 'function') {
+          refreshTable('#languageTableCard');
+        }
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+        showAdminToast(err.message || 'Error updating language.', 'error');
+      });
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        closeEditLanguageModal();
+      }
+    });
   </script>
+
+  <!-- Edit Language Modal -->
+  <div class="modal-overlay" id="editLanguageModal" onclick="if (event.target === this) closeEditLanguageModal()">
+    <div class="modal-box" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title">{{ __('Edit Language') }}</h3>
+        <button type="button" class="modal-close-btn" onclick="closeEditLanguageModal()" aria-label="Close">&times;</button>
+      </div>
+      <form id="editLanguageForm" onsubmit="submitEditLanguageForm(event)">
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px; padding: 20px;">
+          <input type="hidden" id="editLanguageId">
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 5px;">{{ __('Language Name (English)') }}</label>
+            <input type="text" id="editLanguageName" class="search-input" style="width: 100%; border: 1px solid var(--tbl-border); padding: 8px 12px; border-radius: 8px;" required>
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 5px;">{{ __('Native Name') }}</label>
+            <input type="text" id="editLanguageNativeName" class="search-input" style="width: 100%; border: 1px solid var(--tbl-border); padding: 8px 12px; border-radius: 8px;">
+          </div>
+        </div>
+        <div style="padding: 14px 20px; background: #F8FAFC; border-top: 1px solid var(--tbl-border); display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn-table-reset" onclick="closeEditLanguageModal()">{{ __('Cancel') }}</button>
+          <button type="submit" class="btn-primary" id="saveLanguageBtn">{{ __('Save Changes') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="{{ asset('assets/js/admin-tables.js') }}"></script>
+  <script src="{{ asset('assets/js/ajax.js') }}"></script>
 </body>
 
 </html>

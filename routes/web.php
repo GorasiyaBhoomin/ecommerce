@@ -5,6 +5,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AdminLanguageController;
 use App\Http\Controllers\AdminProductController;
 use App\Http\Controllers\AdminProductImportController;
+use App\Http\Controllers\AdminSettingController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AdminVariantController;
 use App\Http\Controllers\ShopController;
@@ -15,8 +16,20 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [UserController::class, 'login']);
 
-Route::redirect('/adminlogin', '/login');
-Route::redirect('/admin/login', '/login');
+Route::get('/adminlogin', function () {
+    if (session('admin_id')) {
+        return redirect()->route('admin.orders.index');
+    }
+
+    return redirect('/login');
+});
+Route::get('/admin/login', function () {
+    if (session('admin_id')) {
+        return redirect()->route('admin.orders.index');
+    }
+
+    return redirect('/login');
+});
 
 // public (guest)
 Route::get('/login', [UserController::class, 'login'])->name('login');
@@ -70,11 +83,15 @@ Route::middleware('user.auth')->group(function () {
 
 // Logout (shared for all authenticated users and admins)
 Route::match(['GET', 'POST'], '/logout', [UserController::class, 'logout'])->name('logout');
+Route::match(['GET', 'POST'], '/admin/logout', [AdminController::class, 'logout'])->name('admin.logout');
 
 Route::middleware('admin.auth')->group(function () {
     // admin
     Route::get('/admin', fn () => redirect()->route('admin.orders.index'))->name('admin.dashboard');
     Route::get('/adminorders', [AdminController::class, 'index'])->name('admin.orders.index');
+    Route::get('/adminorders/table-data', [AdminController::class, 'tableData'])->name('admin.orders.table-data');
+    Route::get('/adminorders/data', [AdminController::class, 'tableData'])->name('admin.orders.data');
+
     // Route::view('/adminproducts', 'admin.admin-products')->name('admin.products');
     Route::get('/adminproducts', [AdminProductController::class, 'index'])->name('admin.products.index');
     Route::get('/adminaddproduct', [AdminProductController::class, 'create'])->name('admin.products.create');
@@ -85,8 +102,12 @@ Route::middleware('admin.auth')->group(function () {
     // Route::view('/admineditproduct/{id}', 'admin.admin-edit-product');
     Route::get('/admineditproduct/{product}', [AdminProductController::class, 'edit'])->name('admin.edit.product');
     Route::post('/admineditproduct/{product}', [AdminProductController::class, 'update'])->name('admin.update.product');
+    Route::patch('/adminproducts/{product}/toggle-status', [AdminProductController::class, 'toggleStatus'])->name('admin.products.toggle');
+    Route::post('/adminproducts/bulk-delete', [AdminProductController::class, 'bulkDelete'])->name('admin.products.bulk-delete');
     Route::delete('/adminproducts/{product}', [AdminProductController::class, 'destroy'])->name('admin.products.destroy');
 
+    Route::delete('/adminorders/{id}', [AdminController::class, 'destroy'])->name('admin.orders.destroy');
+    Route::post('/adminorders/bulk-delete', [AdminController::class, 'bulkDelete'])->name('admin.orders.bulk-delete');
     Route::get('/adminorderdetail/{id}/invoice', [AdminController::class, 'downloadInvoice'])->name('admin.orders.invoice');
 
     Route::get('/admincategories', [AdminCategoryController::class, 'index']);
@@ -94,17 +115,26 @@ Route::middleware('admin.auth')->group(function () {
     Route::post('/adminaddcategory', [AdminCategoryController::class, 'store']);
     Route::get('/admineditcategory/{id}', [AdminCategoryController::class, 'edit']);
     Route::post('/admineditcategory/{id}', [AdminCategoryController::class, 'update']);
+    Route::patch('/admincategories/{category}/toggle-status', [AdminCategoryController::class, 'toggleStatus'])->name('admin.categories.toggle');
+    Route::post('/admincategories/bulk-delete', [AdminCategoryController::class, 'bulkDelete'])->name('admin.categories.bulk-delete');
     Route::delete('/admincategories/{id}', [AdminCategoryController::class, 'destroy']);
 
     Route::get('/adminvariants', [AdminVariantController::class, 'index'])->name('admin.variants');
-    Route::get('/adminaddvariant', [AdminVariantController::class, 'create']);
-    Route::post('/adminaddvariant', [AdminVariantController::class, 'store']);
-    Route::get('/admineditvariant/{id}', [AdminVariantController::class, 'edit']);
-    Route::post('/admineditvariant/{id}', [AdminVariantController::class, 'update']);
-    Route::delete('/adminvariants/{id}', [AdminVariantController::class, 'destroy']);
+    Route::get('/adminaddvariant', [AdminVariantController::class, 'create'])->name('admin.variants.create');
+    Route::post('/adminaddvariant', [AdminVariantController::class, 'store'])->name('admin.variants.store');
+    Route::get('/admineditvariant/{id}', [AdminVariantController::class, 'edit'])->name('admin.variants.edit');
+    Route::post('/admineditvariant/{id}', [AdminVariantController::class, 'update'])->name('admin.variants.update');
+    Route::patch('/adminvariants/{variant}/toggle-status', [AdminVariantController::class, 'toggleStatus'])->name('admin.variants.toggle');
+    Route::post('/adminvariants/bulk-delete', [AdminVariantController::class, 'bulkDelete'])->name('admin.variants.bulk-delete');
+    Route::delete('/adminvariants/{id}', [AdminVariantController::class, 'destroy'])->name('admin.variants.destroy');
+    Route::get('/adminvariants/{id}/json', [AdminVariantController::class, 'showJson'])->name('admin.variants.json');
 
     Route::get('/adminorderdetail/{id}', [AdminController::class, 'show'])->name('admin.orders.show');
-    Route::get('/adminusers', [AdminUserController::class, 'index']);
+    Route::get('/adminusers', [AdminUserController::class, 'index'])->name('admin.users.index');
+    Route::patch('/adminusers/{user}/toggle-status', [AdminUserController::class, 'toggleStatus'])->name('admin.users.toggle');
+    Route::post('/adminusers/{user}/update', [AdminUserController::class, 'update'])->name('admin.users.update');
+    Route::delete('/adminusers/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
+    Route::post('/adminusers/bulk-delete', [AdminUserController::class, 'bulkDelete'])->name('admin.users.bulk-delete');
     Route::get('/adminprofile', [AdminController::class, 'profile'])->name('admin.profile');
     Route::post('/adminprofile', [AdminController::class, 'profileUpdate'])->name('admin.profile.update');
     Route::post('/adminpassword', [AdminController::class, 'passwordUpdate'])->name('admin.password.update');
@@ -118,8 +148,15 @@ Route::middleware('admin.auth')->group(function () {
     Route::match(['GET', 'POST'], '/admin/switch-language/{code?}', [AdminLanguageController::class, 'switchLanguage'])->name('admin.languages.switch');
     Route::get('/adminlanguages', [AdminLanguageController::class, 'index'])->name('admin.languages.index');
     Route::post('/adminlanguages', [AdminLanguageController::class, 'store'])->name('admin.languages.store');
+    Route::post('/adminlanguages/{language}/update', [AdminLanguageController::class, 'update'])->name('admin.languages.update');
     Route::patch('/adminlanguages/{language}/toggle', [AdminLanguageController::class, 'toggle'])->name('admin.languages.toggle');
     Route::patch('/adminlanguages/{language}/default', [AdminLanguageController::class, 'makeDefault'])->name('admin.languages.default');
+    Route::post('/adminlanguages/bulk-delete', [AdminLanguageController::class, 'bulkDelete'])->name('admin.languages.bulk-delete');
     Route::delete('/adminlanguages/{language}', [AdminLanguageController::class, 'destroy'])->name('admin.languages.destroy');
+
+    // System Settings & Admin Theme Colors
+    Route::get('/adminsettings', [AdminSettingController::class, 'index'])->name('admin.settings.index');
+    Route::post('/adminsettings', [AdminSettingController::class, 'update'])->name('admin.settings.update');
+    Route::post('/adminsettings/reset-colors', [AdminSettingController::class, 'resetColors'])->name('admin.settings.reset-colors');
 
 });

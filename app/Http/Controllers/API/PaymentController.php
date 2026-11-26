@@ -37,9 +37,9 @@ class PaymentController extends Controller
                     ],
                 ],
                 'delivery_policy' => [
-                    'free_shipping_threshold' => 499.00,
-                    'standard_shipping_charge' => 49.00,
-                    'message' => 'Free delivery on all orders above ₹499. ₹49 delivery charge for orders under ₹499.',
+                    'free_shipping_threshold' => (float) setting('free_delivery_threshold', 499),
+                    'standard_shipping_charge' => (float) setting('delivery_fee', 49),
+                    'message' => 'Free delivery on all orders above '.setting('currency_symbol', '₹').setting('free_delivery_threshold', 499).'. '.setting('currency_symbol', '₹').setting('delivery_fee', 49).' delivery charge for orders under '.setting('currency_symbol', '₹').setting('free_delivery_threshold', 499).'.',
                 ],
             ],
         ], 200);

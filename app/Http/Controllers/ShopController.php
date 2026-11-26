@@ -247,6 +247,7 @@ class ShopController extends Controller
             $matrix['v'.implode('-', $valueIds)] = [
                 'id' => $variant->id,
                 'sku' => $variant->sku,
+                'value_ids' => $valueIds,
                 'actual_price' => (float) $variant->actual_price,
                 'discounted_price' => (float) $variant->discounted_price,
                 'price' => $this->effectivePrice($variant),
@@ -269,6 +270,21 @@ class ShopController extends Controller
     private function colorHex(string $value): string
     {
         return self::COLOR_HEX_MAP[mb_strtolower(trim($value))] ?? '#CBD5E1';
+    }
+
+    /**
+     * Calculate delivery fee based on configured free delivery threshold and standard delivery fee.
+     */
+    private function calculateDeliveryFee(float $subtotal, bool $hasItems = true): float
+    {
+        if (! $hasItems || $subtotal <= 0) {
+            return 0.0;
+        }
+
+        $freeThreshold = (float) setting('free_delivery_threshold', 499);
+        $standardFee = (float) setting('delivery_fee', 49);
+
+        return $subtotal >= $freeThreshold ? 0.0 : $standardFee;
     }
 
     // add to cart
@@ -376,7 +392,7 @@ class ShopController extends Controller
             ) * $item->quantity;
         }
 
-        $deliveryFee = ($cartItems->isNotEmpty() && $subtotal <= 499) ? 49 : 0;
+        $deliveryFee = $this->calculateDeliveryFee($subtotal, $cartItems->isNotEmpty());
 
         $total = $subtotal + $deliveryFee;
 
@@ -452,7 +468,7 @@ class ShopController extends Controller
             ];
         }
 
-        $deliveryFee = $subtotal > 499 ? 0 : 49;
+        $deliveryFee = $this->calculateDeliveryFee($subtotal);
 
         if ($deliveryFee > 0) {
             $lineItems[] = [
@@ -639,7 +655,7 @@ class ShopController extends Controller
                 $variant->save();
             }
 
-            $deliveryFee = $subtotal > 499 ? 0 : 49;
+            $deliveryFee = $this->calculateDeliveryFee($subtotal);
             $total = $subtotal + $deliveryFee;
 
             // Verify the charged amount matches the order total.
@@ -823,7 +839,7 @@ class ShopController extends Controller
                 $variant->save();
             }
 
-            $deliveryFee = $subtotal > 499 ? 0 : 49;
+            $deliveryFee = $this->calculateDeliveryFee($subtotal);
 
             $order = Order::create([
                 'user_id' => $userId,
@@ -882,7 +898,7 @@ class ShopController extends Controller
 
     }
 
-    public function myOrders()
+    public function myOrders(Request $request)
     {
         $userId = session('user_id');
 
@@ -890,12 +906,94 @@ class ShopController extends Controller
             return redirect('/login');
         }
 
-        $orders = Order::where('user_id', $userId)
-            ->with('items')
-            ->latest()
-            ->get();
+        $search = $request->string('search')->trim()->toString();
+        if ($search === '') {
+            $search = $request->string('q')->trim()->toString();
+        }
 
-        return view('user.my-orders', compact('orders'));
+        $statusFilter = $request->string('status')->trim()->toString();
+        if ($statusFilter === '') {
+            $statusFilter = $request->string('filter')->trim()->toString();
+        }
+
+        $viewMode = $request->string('view', 'cards')->trim()->toString();
+
+        $query = Order::where('user_id', $userId)->with(['items.product', 'items.variant.values']);
+
+        if ($search !== '') {
+            $cleanSearch = ltrim(strtolower($search), '#');
+            if (str_starts_with($cleanSearch, 'sk-')) {
+                $cleanSearch = substr($cleanSearch, 3);
+            }
+
+            $query->where(function ($q) use ($search, $cleanSearch) {
+                if (is_numeric($cleanSearch)) {
+                    $q->orWhere('id', (int) $cleanSearch);
+                }
+                $q->orWhere('payment_id', 'like', '%'.$search.'%')
+                    ->orWhere('razorpay_payment_id', 'like', '%'.$search.'%')
+                    ->orWhere('stripe_payment_id', 'like', '%'.$search.'%')
+                    ->orWhereHas('items', function ($iQ) use ($search) {
+                        $iQ->where('product_name', 'like', '%'.$search.'%');
+                    });
+            });
+        }
+
+        if ($statusFilter === 'progress') {
+            $query->whereNotIn('order_status', ['delivered', 'cancelled']);
+        } elseif ($statusFilter === 'delivered') {
+            $query->where('order_status', 'delivered');
+        } elseif ($statusFilter === 'cancelled') {
+            $query->where('order_status', 'cancelled');
+        } elseif ($statusFilter !== '' && $statusFilter !== 'all') {
+            $query->where('order_status', $statusFilter);
+        }
+
+        // Sorting
+        $allowedSorts = ['id', 'created_at', 'total_amount', 'order_status'];
+        $sortBy = $request->string('sort_by')->trim()->toString();
+        $sortDir = strtolower($request->string('sort_dir', 'desc')->toString()) === 'asc' ? 'asc' : 'desc';
+
+        $combinedSort = $request->string('sort')->trim()->toString();
+        if ($combinedSort !== '') {
+            $parts = preg_split('/[:_]/', $combinedSort);
+            if (count($parts) >= 2) {
+                $sortBy = $parts[0];
+                $sortDir = strtolower($parts[1]) === 'asc' ? 'asc' : 'desc';
+            }
+        }
+
+        if (in_array($sortBy, $allowedSorts, true)) {
+            $query->orderBy($sortBy, $sortDir);
+        } else {
+            $query->latest('id');
+        }
+
+        $perPage = (int) $request->input('per_page', 10);
+        if (! in_array($perPage, [10, 25, 50, 100], true)) {
+            $perPage = 10;
+        }
+
+        $orders = $query->paginate($perPage)->withQueryString();
+
+        $allCount = Order::where('user_id', $userId)->count();
+        $inProgressCount = Order::where('user_id', $userId)->whereNotIn('order_status', ['delivered', 'cancelled'])->count();
+        $deliveredCount = Order::where('user_id', $userId)->where('order_status', 'delivered')->count();
+        $cancelledCount = Order::where('user_id', $userId)->where('order_status', 'cancelled')->count();
+
+        return view('user.my-orders', compact(
+            'orders',
+            'search',
+            'statusFilter',
+            'viewMode',
+            'perPage',
+            'sortBy',
+            'sortDir',
+            'allCount',
+            'inProgressCount',
+            'deliveredCount',
+            'cancelledCount'
+        ));
     }
 
     public function downloadInvoice($id)
@@ -959,7 +1057,7 @@ class ShopController extends Controller
             }
 
             $subtotal = round($subtotal, 2);
-            $deliveryFee = $subtotal > 499 ? 0 : 49;
+            $deliveryFee = $this->calculateDeliveryFee($subtotal);
             $total = round($subtotal + $deliveryFee, 2);
 
             $user = users::findOrFail($userId);
@@ -1187,7 +1285,7 @@ class ShopController extends Controller
             }
 
             $subtotal = round($subtotal, 2);
-            $deliveryFee = $subtotal > 499 ? 0 : 49;
+            $deliveryFee = $this->calculateDeliveryFee($subtotal);
             $total = round($subtotal + $deliveryFee, 2);
 
             // Never trust the amount sent by the browser

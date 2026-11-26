@@ -8,21 +8,43 @@
   $active = $active ?? '';
   $showUserPill = $showUserPill ?? false;
 @endphp
+    <!-- Dynamic Admin Theme Styles -->
+    <style>
+      :root {
+        --primary-teal: {{ setting('admin_primary_color', '#0F766E') }};
+        --primary-hover: {{ setting('admin_primary_hover', '#0D655E') }};
+        --admin-sidebar: {{ setting('admin_sidebar_bg', '#0F2A27') }};
+        --admin-sidebar-text: {{ setting('admin_sidebar_text', '#CFE3DF') }};
+        --admin-sidebar-active: {{ setting('admin_sidebar_active', '#1D4E49') }};
+        --admin-sidebar-hover: {{ setting('admin_sidebar_hover', '#173E3A') }};
+        --accent-amber: {{ setting('admin_accent_color', '#F59E0B') }};
+        --admin-bg: {{ setting('admin_body_bg', '#F4F6F5') }};
+        --card-bg: {{ setting('admin_card_bg', '#FFFFFF') }};
+      }
+    </style>
+
     <!-- Left Dark Sidebar -->
     <aside class="admin-sidebar" id="adminSidebar">
       <div class="brand-area">
-        <div class="brand-logo-icon">
-          <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-            <path d="M3 6h18" />
-            <path d="M16 10a4 4 0 0 1-8 0" />
-          </svg>
-        </div>
-        <div>
-          <div class="brand-title">Shopkart</div>
-          <span class="brand-badge">{{ __('Admin Suite') }}</span>
-        </div>
+        <a href="/adminorders" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; width: 100%;">
+          @if (setting('store_logo'))
+            <img src="{{ asset(setting('store_logo')) }}" alt="{{ setting('store_name', 'Shopkart') }}"
+                 style="width: 36px; height: 36px; object-fit: contain; border-radius: 8px; background: rgba(255,255,255,0.1); padding: 4px; flex-shrink: 0;">
+          @else
+            <div class="brand-logo-icon">
+              <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                <path d="M3 6h18" />
+                <path d="M16 10a4 4 0 0 1-8 0" />
+              </svg>
+            </div>
+          @endif
+          <div style="overflow: hidden;">
+            <div class="brand-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ setting('store_name', 'Shopkart') }}</div>
+            <span class="brand-badge">{{ __('Admin Suite') }}</span>
+          </div>
+        </a>
       </div>
 
       <div class="nav-label">{{ __('Management') }}</div>
@@ -115,6 +137,15 @@
           </a>
         </li>
         <li>
+          <a href="{{ route('admin.settings.index') }}" class="menu-link {{ $active === 'settings' ? 'active' : '' }}">
+            <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            {{ __('Settings') }}
+          </a>
+        </li>
+        <li>
           <a href="/adminprofile" class="menu-link {{ $active === 'profile' ? 'active' : '' }}">
             <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -125,7 +156,7 @@
           </a>
         </li>
         <li>
-          <form method="POST" action="/logout" style="margin: 0;">
+          <form method="POST" action="{{ route('admin.logout') }}" style="margin: 0;">
             @csrf
             <button type="submit" class="menu-link" style="width: 100%; background: none; border: none; text-align: left; cursor: pointer; font: inherit; color: #f87171; display: flex; align-items: center; gap: 10px;">
               <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -19,7 +19,7 @@
 <body>
 
   <div class="admin-container">
-        @include('admin.partials.admin-sidebar', ['active' => 'products'])
+    @include('admin.partials.admin-sidebar', ['active' => 'products'])
 
     <!-- Main Area -->
     <main class="admin-main">
@@ -82,7 +82,7 @@
       </div>
 
       <form method="POST" action="{{ route('admin.update.product', $product) }}" enctype="multipart/form-data"
-        id="editProductForm">
+        id="editProductForm" class="ajax-form" data-reset="false">
         @csrf
 
         @if ($errors->any())
@@ -116,16 +116,15 @@
                 <div class="form-row-2">
                   <div class="form-group">
                     <label for="prodName">Product Name *</label>
-                    <input type="text" id="prodName" name="name" class="input-text"
-                      placeholder="e.g. Nova X5 Flagship" value="{{ old('name', $product->name) }}" required>
+                    <input type="text" id="prodName" name="name" class="input-text" placeholder="e.g. Nova X5 Flagship"
+                      value="{{ old('name', $product->name) }}" required>
                   </div>
                   <div class="form-group">
                     <label for="prodCategory">Category *</label>
                     <select id="prodCategory" name="category_id" class="select-input" required>
                       <option value="">Select a category</option>
                       @foreach ($categories as $category)
-                        <option value="{{ $category->id }}"
-                          @selected(old('category_id', $product->category_id) == $category->id)>
+                        <option value="{{ $category->id }}" @selected(old('category_id', $product->category_id) == $category->id)>
                           {{ $category->name }}
                         </option>
                       @endforeach
@@ -163,10 +162,8 @@
                   @endif
 
                   <label class="image-upload-box" for="fileInput" id="imageUploadBox" style="margin-top:12px;">
-                    <input type="file" id="fileInput" name="images[]" style="display: none;" accept="image/*"
-                      multiple>
-                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="1.8">
+                    <input type="file" id="fileInput" name="images[]" style="display: none;" accept="image/*" multiple>
+                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="17 8 12 3 7 8" />
                       <line x1="12" y1="3" x2="12" y2="15" />
@@ -180,8 +177,7 @@
                   <div class="image-preview-grid" id="imagePreviewGrid"></div>
 
                   <div class="image-count-hint" id="imageCountHint">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <circle cx="12" cy="12" r="10" />
                       <line x1="12" y1="16" x2="12" y2="12" />
                       <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -313,8 +309,7 @@
               </div>
 
               <div class="visibility-toggle">
-                <input type="checkbox" id="showOnWebsite" name="is_active" value="1"
-                  @checked(old('is_active', $product->is_active))>
+                <input type="checkbox" id="showOnWebsite" name="is_active" value="1" @checked(old('is_active', $product->is_active))>
                 <label for="showOnWebsite">
                   <strong>Show on website</strong>
                   <div style="font-size: 11px; color: var(--muted);">Visible to customer storefront catalog</div>
@@ -323,8 +318,7 @@
 
               <div style="display: flex; flex-direction: column; gap: 10px;">
                 <button type="submit" class="btn-publish">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
                   Update Product
@@ -333,8 +327,7 @@
                   Save Changes as Draft
                 </button>
                 <button type="button" class="btn-delete" disabled title="Delete route not added yet">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M3 6h18" />
                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                   </svg>
@@ -350,21 +343,23 @@
   </div>
 
   @php
-    $existingVariantsData = $product->variants->map(fn ($v) => [
-        'id' => $v->id,
-        'variant_value_ids' => $v->values->pluck('id')->map(fn ($id) => (int) $id)->all(),
-        'sku' => $v->sku,
-        'actual_price' => $v->actual_price,
-        'discounted_price' => $v->discounted_price,
-        'stock_qty' => $v->stock_qty,
+    $existingVariantsData = $product->variants->map(fn($v) => [
+      'id' => $v->id,
+      'variant_value_ids' => $v->values->pluck('id')->map(fn($id) => (int) $id)->all(),
+      'sku' => $v->sku,
+      'actual_price' => $v->actual_price,
+      'discounted_price' => $v->discounted_price,
+      'stock_qty' => $v->stock_qty,
     ])->values()->all();
 
-    $existingSpecsData = $product->specifications->map(fn ($s) => [
-        'label' => $s->label,
-        'value' => $s->value,
+    $existingSpecsData = $product->specifications->map(fn($s) => [
+      'label' => $s->label,
+      'value' => $s->value,
     ])->values()->all();
   @endphp
 
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="{{ asset('assets/js/ajax.js') }}"></script>
   <script>
     window.variantGroups = @json($variantGroups);
     window.productSku = @json($product->sku);
@@ -575,16 +570,16 @@
         }, [[]]);
       }
 
-     function autoSku(ids) {
-  var parts = ids.map(function (id) {
-    var info = valueInfo[id];
-    return String(info.suffix || info.text).toUpperCase().replace(/[^A-Z0-9]+/g, '');
-  });
-  // Use the prefix of the first saved variant (e.g. IP15P) instead of the long product SKU
-  var firstSku = existing.length && existing[0].sku ? existing[0].sku : '';
-  var prefix = firstSku ? firstSku.split('-')[0] : (window.productSku || '');
-  return [prefix].concat(parts).filter(Boolean).join('-');
-}
+      function autoSku(ids) {
+        var parts = ids.map(function (id) {
+          var info = valueInfo[id];
+          return String(info.suffix || info.text).toUpperCase().replace(/[^A-Z0-9]+/g, '');
+        });
+        // Use the prefix of the first saved variant (e.g. IP15P) instead of the long product SKU
+        var firstSku = existing.length && existing[0].sku ? existing[0].sku : '';
+        var prefix = firstSku ? firstSku.split('-')[0] : (window.productSku || '');
+        return [prefix].concat(parts).filter(Boolean).join('-');
+      }
 
       function rebuildTable() {
         captureRows();

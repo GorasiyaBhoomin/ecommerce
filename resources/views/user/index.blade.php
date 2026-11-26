@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shopkart &bull; Online Store &bull; Quality Tech &amp; Daily Essentials</title>
+  <title>{{ setting('store_name', 'Shopkart') }} &bull; {{ setting('store_tagline') ?: 'Online Store &bull; Quality Tech & Daily Essentials' }}</title>
+  @if (setting('store_favicon'))
+    <link rel="icon" href="{{ asset(setting('store_favicon')) }}">
+  @endif
   <!-- Google Fonts: Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -190,17 +193,27 @@
     <div class="footer-inner">
       <div class="footer-grid">
         <div>
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-            <div class="brand-icon-box" style="width: 28px; height: 28px;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
-                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>
-              </svg>
-            </div>
-            <span style="font-weight: 800; font-size: 16px;">Shopkart</span>
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+            @if (setting('store_logo'))
+              <img src="{{ asset(setting('store_logo')) }}" alt="{{ setting('store_name', 'Shopkart') }}"
+                   style="height: 32px; width: auto; max-width: 140px; object-fit: contain; border-radius: 6px;">
+            @else
+              <div class="brand-icon-box" style="width: 28px; height: 28px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                  <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>
+                </svg>
+              </div>
+            @endif
+            <span style="font-weight: 800; font-size: 18px;">{{ setting('store_name', 'Shopkart') }}</span>
           </div>
           <p style="font-size: 13px; color: var(--muted); line-height: 1.6; max-width: 320px;">
-            Direct-to-consumer store delivering genuine electronics and daily essentials with fast doorstep delivery.
+            {{ setting('store_tagline') ?: 'Direct-to-consumer store delivering genuine electronics and daily essentials with fast doorstep delivery.' }}
           </p>
+          @if (setting('contact_address'))
+            <p style="font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.5;">
+              <span style="font-weight: 600; color: var(--ink);">Address:</span> {{ setting('contact_address') }}
+            </p>
+          @endif
         </div>
 
         <div>
@@ -227,7 +240,14 @@
           <h4 class="footer-col-title">Help &amp; Support</h4>
           <ul class="footer-links">
             <li><a href="/myorders">Shipping &amp; Delivery</a></li>
-            <li><a href="mailto:support@shopkart.com">support@shopkart.com</a></li>
+            @if (setting('contact_email'))
+              <li><a href="mailto:{{ setting('contact_email') }}">{{ setting('contact_email') }}</a></li>
+            @else
+              <li><a href="mailto:support@shopkart.com">support@shopkart.com</a></li>
+            @endif
+            @if (setting('contact_phone'))
+              <li><a href="tel:{{ setting('contact_phone') }}">{{ setting('contact_phone') }}</a></li>
+            @endif
           </ul>
         </div>
       </div>

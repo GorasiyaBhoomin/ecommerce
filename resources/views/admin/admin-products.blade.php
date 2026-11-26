@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Products &amp; Stock Management | Shopkart Admin</title>
   <!-- Google Fonts: Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,6 +13,7 @@
     rel="stylesheet">
   <link href="{{ asset('assets/css/adminproducts.css') }}" rel="stylesheet">
   <link href="{{ asset('assets/css/admin-notifications.css') }}" rel="stylesheet">
+  <link href="{{ asset('assets/css/admin-tables.css') }}" rel="stylesheet">
 </head>
 
 <body>
@@ -123,35 +125,76 @@
             @endif
           </div>
         @endif
-        <!-- Category Filter Pills -->
-        <div class="toolbar-bar">
-          <div class="filter-pills-wrap">
-            <a href="{{ route('admin.products.index', array_filter(['search' => request('search'), 'stock' => request('stock')])) }}"
-              class="filter-pill {{ $selectedCategory ? '' : 'active' }}">All Categories
-              ({{ $categories->sum('products_count') }})</a>
-            @foreach ($categories as $category)
-              <a href="{{ route('admin.products.index', array_filter(['category' => $category->slug, 'search' => request('search'), 'stock' => request('stock')])) }}"
-                class="filter-pill {{ $selectedCategory?->id === $category->id ? 'active' : '' }}">{{ $category->name }}
-                ({{ $category->products_count }})</a>
-            @endforeach
-          </div>
+        <!-- Unified Table Toolbar (Search, Category, Stock, Status, Per-Page, Reset) -->
+        <div class="table-toolbar-card">
+          <form method="GET" action="{{ route('admin.products.index') }}" class="table-toolbar-form" id="productsFilterForm">
+            @if (request('sort_by'))
+              <input type="hidden" name="sort_by" value="{{ request('sort_by') }}">
+            @endif
+            @if (request('sort_dir'))
+              <input type="hidden" name="sort_dir" value="{{ request('sort_dir') }}">
+            @endif
+
+            <div class="table-toolbar-left">
+              <div class="table-search-box">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+                <input type="text" name="search" class="search-input" placeholder="Search product, SKU, variant..."
+                  value="{{ request('search') ?? request('q') }}" autocomplete="off" aria-label="Search products">
+                <button type="button" class="search-clear-btn" style="{{ (request('search') || request('q')) ? 'display:flex;' : 'display:none;' }}" onclick="clearTableSearch(this)" title="Clear search">✕</button>
+              </div>
+
+              <!-- Category Filter Dropdown -->
+              <select name="category" class="table-filter-select {{ request('category') ? 'has-value' : '' }}" aria-label="Filter by category">
+                <option value="">All Categories ({{ $categories->sum('products_count') }})</option>
+                @foreach ($categories as $cat)
+                  <option value="{{ $cat->slug }}" {{ request('category') === $cat->slug ? 'selected' : '' }}>
+                    {{ $cat->name }} ({{ $cat->products_count }})
+                  </option>
+                @endforeach
+              </select>
+
+              <!-- Stock Filter Dropdown -->
+              <select name="stock" class="table-filter-select {{ request('stock') ? 'has-value' : '' }}" aria-label="Filter by stock status">
+                <option value="">All Stock Levels</option>
+                <option value="in_stock" {{ request('stock') === 'in_stock' ? 'selected' : '' }}>In Stock (> 10)</option>
+                <option value="low_stock" {{ request('stock') === 'low_stock' ? 'selected' : '' }}>Low Stock (&le; 10)</option>
+                <option value="out_of_stock" {{ request('stock') === 'out_of_stock' ? 'selected' : '' }}>Out of Stock</option>
+              </select>
+
+              <!-- Active Status Filter Dropdown -->
+              <select name="status" class="table-filter-select {{ request('status') ? 'has-value' : '' }}" aria-label="Filter by status">
+                <option value="">All Statuses</option>
+                <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
+                <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
+              </select>
+            </div>
+
+            <div class="table-toolbar-right">
+              <button type="button" class="btn-bulk-delete" style="display: none;" onclick="executeBulkDelete('products', '{{ route('admin.products.bulk-delete') }}')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                Delete Selected (<span class="selected-count">0</span>)
+              </button>
+
+              @if (request('search') || request('q') || request('category') || request('stock') || request('status') || request('sort_by'))
+                <a href="{{ route('admin.products.index') }}" class="btn-table-reset" title="Reset all filters and search">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="1 4 1 10 7 10" />
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                  </svg>
+                  Reset Filters
+                </a>
+              @endif
+            </div>
+          </form>
         </div>
 
-        <!-- Stock Status Filter Pills -->
-        <div class="toolbar-bar" style="margin-top: 10px;">
-          <div class="filter-pills-wrap">
-            <a href="{{ route('admin.products.index', array_filter(['category' => request('category'), 'search' => request('search')])) }}"
-              class="filter-pill {{ !request('stock') ? 'active' : '' }}">All Stock</a>
-            <a href="{{ route('admin.products.index', array_filter(['category' => request('category'), 'search' => request('search'), 'stock' => 'in_stock'])) }}"
-              class="filter-pill {{ request('stock') === 'in_stock' ? 'active' : '' }}">In Stock</a>
-            <a href="{{ route('admin.products.index', array_filter(['category' => request('category'), 'search' => request('search'), 'stock' => 'low_stock'])) }}"
-              class="filter-pill {{ request('stock') === 'low_stock' ? 'active' : '' }}">Low Stock (&le; 10)</a>
-            <a href="{{ route('admin.products.index', array_filter(['category' => request('category'), 'search' => request('search'), 'stock' => 'out_of_stock'])) }}"
-              class="filter-pill {{ request('stock') === 'out_of_stock' ? 'active' : '' }}">Out of Stock</a>
-          </div>
-        </div>
-
-        <section class="category-section-card">
+        <section class="category-section-card" id="productTableCard">
           <div class="category-card-header">
             <div class="category-title-wrap">
               <h2 class="category-title">{{ $selectedCategory?->name ?? 'All Products' }}</h2>
@@ -167,11 +210,14 @@
             <table class="products-table">
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th>Variants</th>
+                  <th style="width: 44px; text-align: center;">
+                    <input type="checkbox" class="form-check-input select-all-checkbox" aria-label="Select all products">
+                  </th>
+                  @include('admin.partials.sort-th', ['column' => 'name', 'label' => 'Product'])
+                  @include('admin.partials.sort-th', ['column' => 'sku', 'label' => 'Variants / SKU'])
                   <th>Price Range</th>
                   <th>Total Stock</th>
-                  <th>Status</th>
+                  @include('admin.partials.sort-th', ['column' => 'is_active', 'label' => 'Status'])
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -184,6 +230,9 @@
                   $searchText = strtolower(trim($product->name.' '.$product->sku.' '.($product->category->name ?? '').' '.$variantSkus));
                 @endphp
                 <tr data-search="{{ $searchText }}" data-stock="{{ $stockState }}">
+                  <td style="text-align: center;">
+                    <input type="checkbox" class="form-check-input row-checkbox" value="{{ $product->id }}" aria-label="Select product">
+                  </td>
                   <td>
                     <div class="product-meta-cell">
                       @if ($firstImg)
@@ -221,15 +270,28 @@
                   </td>
                   <td>
                     <span class="stock-count-val">{{ $product->total_stock }}</span>
+                    <div style="margin-top: 4px;">
+                      @if($product->total_stock > 10)
+                        <span class="badge bg-success" style="font-size: 10px; padding: 2px 6px;">In Stock</span>
+                      @elseif($product->total_stock > 0)
+                        <span class="badge bg-warning text-dark" style="font-size: 10px; padding: 2px 6px;">Low Stock</span>
+                      @else
+                        <span class="badge bg-danger" style="font-size: 10px; padding: 2px 6px;">Out of Stock</span>
+                      @endif
+                    </div>
                   </td>
                   <td>
-                    @if($product->total_stock > 10)
-                      <span class="badge badge-in_stock"><span class="badge-dot"></span>In Stock</span>
-                    @elseif($product->total_stock > 0)
-                      <span class="badge badge-low_stock"><span class="badge-dot"></span>Low Stock</span>
-                    @else
-                      <span class="badge badge-out_of_stock"><span class="badge-dot"></span>Out of Stock</span>
-                    @endif
+                    <div class="status-toggle-wrap">
+                      <label class="form-check form-switch" title="Toggle status">
+                        <input type="checkbox" class="form-check-input status-toggle-input"
+                          data-url="{{ route('admin.products.toggle', $product->id) }}"
+                          data-id="{{ $product->id }}"
+                          {{ $product->is_active ? 'checked' : '' }}>
+                      </label>
+                      <span class="badge {{ $product->is_active ? 'bg-success' : 'bg-secondary' }} status-badge-{{ $product->id }}">
+                        {{ $product->is_active ? 'Active' : 'Inactive' }}
+                      </span>
+                    </div>
                   </td>
                   <td>
                     <div class="table-actions">
@@ -242,10 +304,14 @@
                         Edit
                       </a>
                       <form method="POST" action="/adminproducts/{{ $product->id }}"
-                        onsubmit="return confirmDelete('{{ addslashes($product->name) }}')" style="margin: 0; display: inline;">
+                        onsubmit="return confirmRecordDelete('{{ addslashes($product->name) }}', 'product')" style="margin: 0; display: inline;">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="delete-btn">
+                        <button type="button" class="delete-btn ajax-delete"
+                          data-url="/adminproducts/{{ $product->id }}"
+                          data-id="{{ $product->id }}"
+                          data-confirm="Are you sure you want to delete &quot;{{ addslashes($product->name) }}&quot;? This will permanently remove the product and its variants."
+                          data-table="#productTableCard">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <path d="M3 6h18" />
@@ -258,96 +324,36 @@
                   </td>
                 </tr>
                 @empty
-                <tr>
-                  <td colspan="6" class="text-muted" style="text-align: center; padding: 30px;">No products found.</td>
-                </tr>
+                  @include('admin.partials.empty-state', [
+                    'colspan' => 7,
+                    'title' => 'No products found',
+                    'message' => 'No products match your search or filter criteria. Try adjusting your filters or search terms.',
+                    'resetUrl' => route('admin.products.index'),
+                    'hasFilters' => (bool) (request('search') || request('q') || request('category') || request('stock') || request('status') || request('sort_by')),
+                  ])
                 @endforelse
-                <tr id="noProductMatchRow" style="display: none;">
-                  <td colspan="6" class="text-muted" style="text-align: center; padding: 30px;">No products match your search.</td>
-                </tr>
               </tbody>
             </table>
           </div>
 
-          <div class="pagination-bar" style="padding: 14px 20px; border-top: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; background: #FFFFFF; font-size: 13px; color: var(--muted, #64748B);">
-            <div>
-              Showing
-              <span>
-                @if ($products->total() === 0)
-                  0
-                @else
-                  {{ $products->firstItem() }}-{{ $products->lastItem() }}
-                @endif
-              </span>
-              of {{ $products->total() }} products recorded
-            </div>
-            @if ($products->hasPages())
-              <nav class="pagination-controls" aria-label="Products pagination">
-                {{-- Previous Page Link --}}
-                @if ($products->onFirstPage())
-                  <span class="pagination-btn disabled" aria-disabled="true">&larr; Previous</span>
-                @else
-                  <a href="{{ $products->previousPageUrl() }}" class="pagination-btn" rel="prev">&larr; Previous</a>
-                @endif
-
-                {{-- Page Numbers --}}
-                <div class="pagination-numbers">
-                  @for ($page = 1; $page <= $products->lastPage(); $page++)
-                    @if ($page == $products->currentPage())
-                      <span class="pagination-number active" aria-current="page">{{ $page }}</span>
-                    @else
-                      <a href="{{ $products->url($page) }}" class="pagination-number">{{ $page }}</a>
-                    @endif
-                  @endfor
-                </div>
-
-                {{-- Next Page Link --}}
-                @if ($products->hasMorePages())
-                  <a href="{{ $products->nextPageUrl() }}" class="pagination-btn" rel="next">Next &rarr;</a>
-                @else
-                  <span class="pagination-btn disabled" aria-disabled="true">Next &rarr;</span>
-                @endif
-              </nav>
-            @endif
-          </div>
+          @include('admin.partials.table-pagination', [
+            'paginator' => $products,
+            'recordName' => 'products'
+          ])
         </section>
-
-       
       </div>
     </main>
   </div>
 
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="{{ asset('assets/js/admin-tables.js') }}"></script>
+  <script src="{{ asset('assets/js/ajax.js') }}"></script>
   <script>
     function confirmDelete(name) {
       return confirm('Are you sure you want to delete "' + name + '"? This will permanently remove the product and its variants.');
     }
 
-    // Live search for products
-    const productSearchInput = document.getElementById('productSearchInput');
-    if (productSearchInput) {
-      productSearchInput.addEventListener('input', function () {
-        const term = this.value.trim().toLowerCase();
-        const rows = document.querySelectorAll('#productTableBody tr[data-search]');
-        let visible = 0;
-        rows.forEach(row => {
-          const match = !term || (row.dataset.search || '').includes(term);
-          row.style.display = match ? '' : 'none';
-          if (match) visible++;
-        });
-
-        const emptyRow = document.getElementById('noProductMatchRow');
-        if (emptyRow) {
-          emptyRow.style.display = (visible === 0 && rows.length > 0) ? '' : 'none';
-        }
-
-        const countPill = document.getElementById('productCountPill');
-        if (countPill && term) {
-          countPill.textContent = `${visible} Products shown`;
-        }
-      });
-    }
-
-    // Mobile sidebar drawer (layout only)
+    // Mobile sidebar drawer
     (function () {
       var menuBtn = document.getElementById('mobileMenuBtn');
       var sidebar = document.getElementById('adminSidebar');

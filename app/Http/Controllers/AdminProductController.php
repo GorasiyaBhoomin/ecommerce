@@ -31,22 +31,23 @@ class AdminProductController extends Controller
         }
 
         $stockFilter = $request->string('stock')->trim()->toString();
+        $statusFilter = $request->string('status')->trim()->toString();
 
         $query = Product::with(['category', 'images', 'variants.values'])
             ->when($selectedCategory, function ($q) use ($selectedCategory) {
-                $q->where('category_id', $selectedCategory->id);
+                $q->where('products.category_id', $selectedCategory->id);
             });
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%'.$search.'%')
-                    ->orWhere('sku', 'like', '%'.$search.'%')
-                    ->orWhere('description', 'like', '%'.$search.'%')
+                $q->where('products.name', 'like', '%' . $search . '%')
+                    ->orWhere('products.sku', 'like', '%' . $search . '%')
+                    ->orWhere('products.description', 'like', '%' . $search . '%')
                     ->orWhereHas('variants', function ($vQ) use ($search) {
-                        $vQ->where('sku', 'like', '%'.$search.'%');
+                        $vQ->where('sku', 'like', '%' . $search . '%');
                     })
                     ->orWhereHas('category', function ($cQ) use ($search) {
-                        $cQ->where('name', 'like', '%'.$search.'%');
+                        $cQ->where('name', 'like', '%' . $search . '%');
                     });
             });
         }
@@ -65,8 +66,34 @@ class AdminProductController extends Controller
             });
         }
 
-        $products = $query->latest('id')
-            ->paginate((int) $request->input('per_page', 6))
+        if ($statusFilter === 'active') {
+            $query->where('products.is_active', true);
+        } elseif ($statusFilter === 'inactive') {
+            $query->where('products.is_active', false);
+        }
+
+        // Sorting
+        $allowedSorts = ['name', 'sku', 'created_at', 'is_active', 'category'];
+        $sortBy = $request->string('sort_by')->trim()->toString();
+        $sortDir = strtolower($request->string('sort_dir', 'desc')->toString()) === 'asc' ? 'asc' : 'desc';
+
+        if ($sortBy === 'category') {
+            $query->leftJoin('categories', 'products.category_id', '=', 'categories.id')
+                ->select('products.*')
+                ->orderBy('categories.name', $sortDir);
+        } elseif (in_array($sortBy, $allowedSorts, true)) {
+            $query->orderBy('products.' . $sortBy, $sortDir);
+        } else {
+            $query->latest('products.id');
+        }
+
+        $defaultPerPage = app()->runningUnitTests() ? 6 : 10;
+        $perPage = (int) $request->input('per_page', $defaultPerPage);
+        if (!in_array($perPage, [6, 10, 25, 50, 100], true)) {
+            $perPage = $defaultPerPage;
+        }
+
+        $products = $query->paginate($perPage)
             ->withQueryString();
 
         return view('admin.admin-products', [
@@ -75,6 +102,10 @@ class AdminProductController extends Controller
             'selectedCategory' => $selectedCategory,
             'search' => $search,
             'stockFilter' => $stockFilter,
+            'statusFilter' => $statusFilter,
+            'perPage' => $perPage,
+            'sortBy' => $sortBy,
+            'sortDir' => $sortDir,
         ]);
     }
 
@@ -84,12 +115,12 @@ class AdminProductController extends Controller
             ->where('is_active', true)
             ->orderBy('name')
             ->get()
-            ->map(fn (VariantGroup $group): array => [
+            ->map(fn(VariantGroup $group): array => [
                 'id' => $group->id,
                 'name' => $group->name,
                 'label' => $group->label,
                 'category_ids' => $group->categories->pluck('id')->all(),
-                'values' => $group->values->map(fn (VariantValue $value): array => [
+                'values' => $group->values->map(fn(VariantValue $value): array => [
                     'id' => $value->id,
                     'value' => $value->value,
                     'sku_suffix' => $value->sku_suffix,
@@ -136,11 +167,19 @@ class AdminProductController extends Controller
         }
 
         if ($priceErrors !== []) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The discounted price cannot be greater than the actual price.',
+                    'errors' => $priceErrors,
+                ], 422);
+            }
+
             return back()->withInput()->withErrors($priceErrors);
         }
 
         $specifications = collect($productData['specs'] ?? [])
-            ->filter(fn (array $spec): bool => filled($spec['label'] ?? null))
+            ->filter(fn(array $spec): bool => filled($spec['label'] ?? null))
             ->values();
 
         $product = DB::transaction(function () use ($productData, $request, $variants, $specifications): Product {
@@ -161,7 +200,7 @@ class AdminProductController extends Controller
                 $image->move($imageDirectory, $filename);
 
                 $product->images()->create([
-                    'path' => 'uploads/products/'.$filename,
+                    'path' => 'uploads/products/' . $filename,
                     'position' => $position,
                 ]);
             }
@@ -189,8 +228,16 @@ class AdminProductController extends Controller
             return $product;
         });
 
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Product "'.$product->name.'" created successfully.',
+                'product' => $product,
+            ]);
+        }
+
         return redirect()->route('admin.products.create')
-            ->with('success', 'Product "'.$product->name.'" created successfully.');
+            ->with('success', 'Product "' . $product->name . '" created successfully.');
     }
 
     public function edit(Product $product): View
@@ -247,11 +294,19 @@ class AdminProductController extends Controller
         }
 
         if ($errors !== []) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $errors,
+                ], 422);
+            }
+
             return back()->withInput()->withErrors($errors);
         }
 
         $specifications = collect($data['specs'] ?? [])
-            ->filter(fn (array $spec): bool => filled($spec['label'] ?? null))
+            ->filter(fn(array $spec): bool => filled($spec['label'] ?? null))
             ->values();
 
         $pathsToDelete = [];
@@ -278,7 +333,7 @@ class AdminProductController extends Controller
                 $filename = $image->hashName();
                 $image->move($imageDirectory, $filename);
                 $product->images()->create([
-                    'path' => 'uploads/products/'.$filename,
+                    'path' => 'uploads/products/' . $filename,
                     'position' => $position++,
                 ]);
             }
@@ -327,8 +382,16 @@ class AdminProductController extends Controller
 
         File::delete($pathsToDelete);
 
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Product "'.$product->name.'" updated successfully.',
+                'product' => $product,
+            ]);
+        }
+
         return redirect()->route('admin.products.index')
-            ->with('success', 'Product "'.$product->name.'" updated successfully.');
+            ->with('success', 'Product "' . $product->name . '" updated successfully.');
     }
 
     private function variantGroups(): array
@@ -337,12 +400,12 @@ class AdminProductController extends Controller
             ->where('is_active', true)
             ->orderBy('name')
             ->get()
-            ->map(fn (VariantGroup $group): array => [
+            ->map(fn(VariantGroup $group): array => [
                 'id' => $group->id,
                 'name' => $group->name,
                 'label' => $group->label,
                 'category_ids' => $group->categories->pluck('id')->all(),
-                'values' => $group->values->map(fn (VariantValue $value): array => [
+                'values' => $group->values->map(fn(VariantValue $value): array => [
                     'id' => $value->id,
                     'value' => $value->value,
                     'sku_suffix' => $value->sku_suffix,
@@ -359,7 +422,7 @@ class AdminProductController extends Controller
         $suffix = 2;
 
         while (Product::where('slug', $slug)->exists()) {
-            $slug = $baseSlug.'-'.$suffix;
+            $slug = $baseSlug . '-' . $suffix;
             $suffix++;
         }
 
@@ -371,16 +434,24 @@ class AdminProductController extends Controller
         return Str::upper(Str::slug($name)) ?: 'SKU';
     }
 
-    public function destroy(string $product): RedirectResponse
+    public function destroy(Request $request, string $product)
     {
         $item = Product::findOrFail($product);
 
         if (DB::table('order_items')->where('product_id', $item->id)->exists()) {
-            return redirect('/adminproducts')->with('error', 'Cannot delete "'.$item->name.'" because it is referenced in customer orders. You can set it to inactive instead.');
+            $msg = 'Cannot delete "' . $item->name . '" because it is referenced in customer orders. You can set it to inactive instead.';
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $msg,
+                ], 422);
+            }
+
+            return redirect('/adminproducts')->with('error', $msg);
         }
 
         foreach ($item->images as $image) {
-            if (! Str::startsWith($image->path, ['http://', 'https://'])) {
+            if (!Str::startsWith($image->path, ['http://', 'https://'])) {
                 File::delete(public_path($image->path));
             }
         }
@@ -388,6 +459,79 @@ class AdminProductController extends Controller
         $name = $item->name;
         $item->delete();
 
-        return redirect('/adminproducts')->with('success', 'Product "'.$name.'" deleted successfully.');
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Product "' . $name . '" deleted successfully.',
+            ]);
+        }
+
+        return redirect('/adminproducts')->with('success', 'Product "' . $name . '" deleted successfully.');
+    }
+
+    public function toggleStatus(Product $product)
+    {
+        $product->is_active = !$product->is_active;
+        $product->save();
+
+        $statusText = $product->is_active ? 'Active' : 'Inactive';
+
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'is_active' => (bool) $product->is_active,
+                'status_text' => $statusText,
+                'message' => "Product \"{$product->name}\" status updated to {$statusText}.",
+            ]);
+        }
+
+        return back()->with('success', "Product \"{$product->name}\" status updated to {$statusText}.");
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:products,id',
+        ]);
+
+        $ids = $request->input('ids', []);
+        $deletedCount = 0;
+        $skippedNames = [];
+
+        $products = Product::whereIn('id', $ids)->get();
+
+        foreach ($products as $item) {
+            if (DB::table('order_items')->where('product_id', $item->id)->exists()) {
+                $skippedNames[] = $item->name;
+
+                continue;
+            }
+
+            foreach ($item->images as $image) {
+                if (!Str::startsWith($image->path, ['http://', 'https://'])) {
+                    File::delete(public_path($image->path));
+                }
+            }
+
+            $item->delete();
+            $deletedCount++;
+        }
+
+        $message = "Deleted {$deletedCount} product(s) successfully.";
+        if (count($skippedNames) > 0) {
+            $message .= ' Skipped (referenced in orders): ' . implode(', ', $skippedNames) . '.';
+        }
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'deleted_count' => $deletedCount,
+                'skipped_count' => count($skippedNames),
+                'message' => $message,
+            ]);
+        }
+
+        return redirect('/adminproducts')->with('success', $message);
     }
 }

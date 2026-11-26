@@ -71,7 +71,9 @@ class CartController extends Controller
             ];
         }
 
-        $deliveryFee = ($cartItems->isNotEmpty() && $subtotal <= 499) ? 49.0 : 0.0;
+        $freeThreshold = (float) setting('free_delivery_threshold', 499);
+        $standardFee = (float) setting('delivery_fee', 49);
+        $deliveryFee = ($cartItems->isNotEmpty() && $subtotal < $freeThreshold) ? $standardFee : 0.0;
         $total = $subtotal + $deliveryFee;
 
         return response()->json([
@@ -86,7 +88,7 @@ class CartController extends Controller
                     'delivery_fee' => $deliveryFee,
                     'total_savings' => round($totalSavings, 2),
                     'total' => round($total, 2),
-                    'free_delivery_threshold' => 499,
+                    'free_delivery_threshold' => (float) setting('free_delivery_threshold', 499),
                     'is_free_delivery' => $deliveryFee === 0.0,
                 ],
             ],
